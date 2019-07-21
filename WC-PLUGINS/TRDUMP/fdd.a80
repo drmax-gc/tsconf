@@ -47,8 +47,8 @@ ERROR_NODISK            EQU     5
 ERROR_NOFDD             EQU     6
 ERROR_BREAK             EQU     7
 ;////////////////////////////
-fdd_retry_cnt_s:        DB      10
-fdd_retry_cnt_t:        DB      1
+fdd_retry_cnt_s         DB      10              ;number of retries
+fdd_retry_cnt_t         DB      3               ;number of reseeks
 ;////////////////////////////
 ;i:     D - logic track (0-159)
 ;       E - sector (from 0)
@@ -129,8 +129,10 @@ vg_rd   in      a,(VG_REG_SYS)
 ;////////////////////////////
 verify_error    DB      0
 FDD_CHECK_SECTOR:
-        ld      c,3
-.rep1   ld      b,10
+        ld      a,(fdd_retry_cnt_t)
+        ld      c,a
+.rep1   ld      a,(fdd_retry_cnt_s)
+        ld      b,a
 .rep0   ld      a,e
         call    FDD_CHECK_SEC
         ld      a,(verify_error)

@@ -198,13 +198,16 @@ WRITER:
 
 .err_write
         push    bc, de, hl
-
+        ld      a, (ignoreall_flag)
+        or      a
+        jr      nz,.subign
         ld      ix,wc_win_error_rai
         call    PRWOW
 .lpk    ei : halt
         call    KEY_R   : jr z,.retry
         call    KEY_A   : jr z,.abort
         call    KEY_I   : jr z,.ignore
+        call    KEY_G   : jr z,.ignoreall
         jr      .lpk
 
 .retry  ld      ix,wc_win_error_rai
@@ -219,11 +222,16 @@ WRITER:
 
 .ignore ld      ix,wc_win_error_rai
         call    RRESB
-
+.subign
         ld      a,(COL_RED << 4) | COL_BRIGHT_YELLOW
         ld      (HDCOL),a
         pop     hl, de, bc
         jp      .ok
+
+.ignoreall
+        ld      a,1
+        ld      (ignoreall_flag), a
+        jr      .ignore
 
 .err_ndsk
         cp      ERROR_NOFDD
@@ -353,7 +361,7 @@ cur_up: ld      a,(ix + WC_WINDOW_2.cur_pos)
         call    CURSER
         ld      a,(ix + WC_WINDOW_2.cur_pos)
         dec     a
-        cp      7
+        cp      9
         jr      nz,.f
         sub     1
 .f      ld      (ix + WC_WINDOW_2.cur_pos),a
@@ -369,9 +377,9 @@ cur_dn: ld      a,(ix + WC_WINDOW_2.cur_pos)
 
         ld      a,(ix + WC_WINDOW_2.cur_pos)
         inc     a
-        cp      7
+        cp      9
         jp      nz,.f
-        ld      a,8
+        ld      a,10
 .f      ld      (ix + WC_WINDOW_2.cur_pos),a
         ld      hl,(ix + WC_WINDOW_2.wnd_txt)
         ld      de,#0101

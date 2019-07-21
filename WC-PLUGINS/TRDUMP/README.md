@@ -11,4 +11,4 @@
   + catalogue preview
   + display current filename
   + detect extra tracks
-
+  + mark ignored sectors as missed
