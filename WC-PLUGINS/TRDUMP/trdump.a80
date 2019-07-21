@@ -1,5 +1,5 @@
 ;//////////////////////////////////////////////////////////////
-;/////////////////////// TRD Dumper v0.71  ////////////////////
+;/////////////////////// TRD Dumper v0.72  ////////////////////
 ;//////////////////////////////////////////////////////////////
 ;//                  by Doctor Max 13-Dec-2017               //
 ;//                          Jun-2018                        //
@@ -161,6 +161,7 @@ UDG
         DB      %00000000
 
 ;////////////////////////////
+ignoreall_flag          db 0
 exit_stat               DB      0
 cfg_wdata               DB      0
 dump_count              DB      0
@@ -181,6 +182,7 @@ filesizes               DD      80*2*16*256
                         DD      86*2*16*256
                         DD      87*2*16*256
 TRDTRACKS               DB      160                     ;number of tracks (160 by default)
+mis_text                DB      "MISSING SECTOR!!"
 
 ;//////////////////////////// Windows
 wc_win_warning          //WC_WINDOW_1
@@ -242,8 +244,8 @@ HOTKEY_COLOR    EQU     COL_YELLOW
 wc_win_error_rai        //WC_WINDOW_1
 /*type*/                DB      #81+3
 /*cur_col_mask*/        DB      0
-/*xy_pos*/              DB      24,10
-/*xy_size*/             DB      32,7
+/*xy_pos*/              DB      20,10
+/*xy_size*/             DB      40,7
 /*attr*/                DB      (COL_RED << 4) | COL_BRIGHT_WHITE
 /*res0*/                DB      0
 /*restore_addr*/        DW      0
@@ -256,7 +258,8 @@ txt_wnd_rai             DB      #0D, #0D, #0D, #0D
                         DB      #0E
                         DB      "[", HOTKEY_COLOR, HOTKEY_COLOR, "R", COL_WHITE, COL_WHITE, "]etry "
                         DB      "[", HOTKEY_COLOR, HOTKEY_COLOR, "A", COL_WHITE, COL_WHITE, "]bort "
-                        DB      "[", HOTKEY_COLOR, HOTKEY_COLOR, "I", COL_WHITE, COL_WHITE, "]gnore", 0
+                        DB      "[", HOTKEY_COLOR, HOTKEY_COLOR, "I", COL_WHITE, COL_WHITE, "]gnore "
+                        DB      "i[", HOTKEY_COLOR, HOTKEY_COLOR, "G", COL_WHITE, COL_WHITE, "]nore all", 0
 txt_wnd_rai_add         DB      "Current file:", 0
 
 
@@ -305,14 +308,14 @@ wc_win_dump_start       //WC_WINDOW_2
 /*type*/                DB      #C2+3
 /*cur_col_mask*/        DB      0
 /*xy_pos*/              DB      26,8
-/*xy_size*/             DB      28,10
+/*xy_size*/             DB      28,12
 /*attr*/                DB      (COL_WHITE << 4) | COL_BRIGHT_WHITE
 /*res0*/                DB      0
 /*restore_addr*/        DW      0
 /*div0*/                DB      0
 /*div1*/                DB      2
 /*cur_pos*/             DB      2
-/*cur_stop*/            DB      8
+/*cur_stop*/            DB      10
 /*cur_col*/             DB      (COL_CYAN << 4) | COL_BRIGHT_WHITE
 /*win_col*/             DB      0
 /*hdr_txt*/             DW      txt_hdr_dstart
@@ -335,12 +338,21 @@ txt_wnd_dstart          DB      #0D
                         DB      #0D
                         DB      "Detect tracks:", 8, #FE
                         DW      txt_detect
-                        DB      #0D,#0D
+                        DB      #0D
+                        DB      "  Retry count:", 8, #FE
+                        DW      txt_retry
+                        DB      #0D
+                        DB      "   Seek count:", 8, #FE
+                        DW      txt_seek
+                        DB      #0D
+                        DB      #0D
                         DB      #0E, "[", COL_YELLOW, COL_YELLOW, " Just DUMP IT ", COL_WHITE, COL_WHITE, "]"
                         DB      0
 txt_filename            DB      "TRDump00", 0
 txt_drive               DB      "A", 0
 txt_tracks              DB      "80", 0
+txt_retry               DB      "10", 0
+txt_seek                DB      "03", 0
 txt_preview             DB      "No ", 0
 txt_detect              DB      "No ", 0
 txt_Y                   DB      "Yes"

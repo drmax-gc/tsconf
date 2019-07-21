@@ -204,6 +204,9 @@ DUMPER_LOOP:
 
 .err_read
         push    bc, de, hl
+        ld a, (ignoreall_flag)
+        or a
+        jr nz,.subign
         ld      hl,txt_wnd_rai_add
         call    PRINT_RIA
 
@@ -211,6 +214,7 @@ DUMPER_LOOP:
         call    KEY_R   : jr z,.retry
         call    KEY_A   : jr z,.abort
         call    KEY_I   : jr z,.ignore
+        call    KEY_G   : jr z,.ignoreall
         jr      .lpk
 
 .retry  call    RESTORE_RIA
@@ -222,15 +226,26 @@ DUMPER_LOOP:
         jp      .no_dump
 
 .ignore call    RESTORE_RIA
-        ld      a,(COL_GREEN << 4) | COL_BRIGHT_RED
+.subign ld      a,(COL_GREEN << 4) | COL_BRIGHT_RED
         ld      (HDCOL),a
         ld      a,SYM_BROKEN
         ld      (RDSYM),a
+
+;// fill ignored sector with text
+
+        pop hl
+        push hl
+        call Filler
 
 ;// TODO: put ignored sector to table
 
         pop     hl, de, bc
         jp      .ok
+
+.ignoreall
+        ld a,1
+        ld (ignoreall_flag), a
+        jr .ignore
 
 .err_ndsk
         cp      ERROR_NOFDD
@@ -267,6 +282,18 @@ DUMPER_LOOP:
         ld      (ix + WC_WINDOW_2.cur_pos),3
         jp      DUMPER_LOOP
 
+Filler:
+        ld d,h
+        ld e,l
+        ld a,#10
+.filler ld hl,mis_text
+        ld bc,#10
+        ldir
+        dec a
+        or a
+        jr nz, .filler
+        ret
+
 ;///////////////////////////////////
 KEY_R:  ld      a,#FB           ;FBFE - QWERT
         in      a,(#FE)
@@ -279,6 +306,10 @@ KEY_A:  ld      a,#FD           ;FDFE - ASDFG
 KEY_I:  ld      a,#DF           ;DFFE - POIUY
         in      a,(#FE)
         bit     2,a             ;I
+        ret
+KEY_G:  ld  a,#fd
+        in  a,(#fe)
+        bit 4,a
         ret
 KEY_SPACE:
         ld      a,#7F
@@ -304,11 +335,13 @@ WAIT_ESC_KEY:
 CLEAR_BUFF:
         push    bc,de,hl
         ld      hl,TRACKBUFF
-        ld      de,hl
-        inc     de
-        ld      (hl),#FF
-        ld      bc,16*256-1
-        ldir
+        ld b, #10
+.lp_fill
+        push bc
+        call Filler
+        ex de,hl
+        pop bc
+        djnz .lp_fill
         pop     hl,de,bc
         ret
 ;///////////////////////////////////
@@ -341,9 +374,9 @@ PRINT_RIA:
         ld      ix,wc_win_error_rai
         call    PRWOW
         pop     hl
-        ld      de,#0204
+        ld      de,#0204+4
         call    TXTPR
-        ld      de,#0204+14
+        ld      de,#0204+14+4
         jp      PRINT_CURRENT_FILE
 
 RESTORE_RIA:
@@ -354,6 +387,8 @@ SELECT:
         ld      a,(DRIVE)
         add     a,"A"
         ld      (txt_drive),a
+        xor a
+        ld (ignoreall_flag), a
 
         ld      ix,wc_win_dump_start
         call    PRWOW
@@ -375,7 +410,11 @@ SELECT:
         jp      z,.selprev
         cp      6
         jr      z,.seldetect
+        cp      7
+        jr      z,.selretry
         cp      8
+        jp      z,.selsector
+        cp      10
         jr      nz,.lp
 
         call    RRESB
@@ -433,6 +472,108 @@ SELECT:
         call    TXTPR
         jp      .lp1
 
+.selretry
+        call CURSER
+        ex af,af'
+        exx
+        ld a,#FD
+        ld hl,2
+        exx
+        ex af,af'
+        ld hl,txt_retry
+        ld de,#070F
+        ld bc,#0200
+        call ISTR
+
+.lpr2   halt
+        call ENKE
+        jp nz,.entr
+
+        ex af,af'
+        ld a,0
+        ex af,af'
+        call ISTR
+        ex af,af'
+        ld a,2
+        ex af,af'
+        call ISTR
+        jr .lpr2
+
+        ld hl,(ix + WC_WINDOW_2.wnd_txt)
+        ld de,#0101
+        call TXTPR
+        jp .lp1
+
+.entr   ex af,af'
+        ld a,1
+        ex af,af'
+        call ISTR
+        ld bc,txt_retry
+        call ASC2NUM16D
+        ld a,l
+        or a
+        jr nz,.put
+        inc a
+.put    ld (fdd_retry_cnt_s),a
+        call A2DEC8
+        ld hl,(NUMBUFF+1)
+        ld (txt_retry),hl
+        ld hl,(ix + WC_WINDOW_2.wnd_txt)
+        ld de,#0101
+        call TXTPR
+        jp .lp1
+
+.selsector
+        call CURSER
+        ex af,af'
+        exx
+        ld a,#FD
+        ld hl,2
+        exx
+        ex af,af'
+        ld hl,txt_seek
+        ld de,#080F
+        ld bc,#0200
+        call ISTR
+
+.lpr21  halt
+        call ENKE
+        jp nz,.entr1
+
+        ex af,af'
+        ld a,0
+        ex af,af'
+        call ISTR
+        ex af,af'
+        ld a,2
+        ex af,af'
+        call ISTR
+        jr .lpr21
+
+        ld hl,(ix + WC_WINDOW_2.wnd_txt)
+        ld de,#0101
+        call TXTPR
+        jp .lp1
+
+.entr1  ex  af,af'
+        ld a,1
+        ex af,af'
+        call ISTR
+        ld bc,txt_seek
+        call ASC2NUM16D
+        ld a,l
+        or a
+        jr nz,.put1
+        inc a
+.put1   ld (fdd_retry_cnt_t),a
+        call A2DEC8
+        ld hl,(NUMBUFF+1)
+        ld (txt_seek),hl
+        ld hl,(ix + WC_WINDOW_2.wnd_txt)
+        ld de,#0101
+        call TXTPR
+        jp .lp1
+    
 .seldrv
         ld      a,(DRIVE)
         inc     a

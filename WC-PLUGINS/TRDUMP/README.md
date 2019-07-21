@@ -1,4 +1,4 @@
-## TRDump v0.71
+## TRDump v0.72
 
 #### Wild commander plugin
 
@@ -11,4 +11,4 @@
   + catalogue preview
   + display current filename
   + detect extra tracks
-
+  + mark ignored sectors as missed
