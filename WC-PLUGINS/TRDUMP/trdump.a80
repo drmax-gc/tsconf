@@ -161,7 +161,7 @@ UDG
         DB      %00000000
 
 ;////////////////////////////
-ignoreall_flag          db 0
+ignoreall_flag          DB      0
 exit_stat               DB      0
 cfg_wdata               DB      0
 dump_count              DB      0
@@ -263,7 +263,7 @@ txt_wnd_rai             DB      #0D, #0D, #0D, #0D
 txt_wnd_rai_add         DB      "Current file:", 0
 
 
-wc_win_select_drive     //WC_WINDOW_2 2,0,32,10,15,8,0x7F,0,0,0,0,2,5,0xF0,0,txt_hdr_select,0,txt_wnd_select
+wc_win_select_drive     //WC_WINDOW_2
 /*type*/                DB      #C2+3
 /*cur_col_mask*/        DB      0
 /*xy_pos*/              DB      32,10

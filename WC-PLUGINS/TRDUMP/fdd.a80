@@ -1,5 +1,5 @@
 ;//////////////////////////////////////////////////////////////
-;////////////////// VG93 (WD1793) routines v0.92 //////////////
+;////////////////// VG93 (WD1793) routines v0.93 //////////////
 ;//////////////////////////////////////////////////////////////
 ;//                  by Doctor Max 10-Dec-2017               //
 ;//                    https://t.me/drmax_gc                 //
@@ -448,6 +448,8 @@ FDD_SYSRG:
         ld      a,#3C
         or      c
         out     (VG_REG_SYS),a
+        ld      b,0
+        djnz    $
         pop     bc
         pop     af
         ret
@@ -459,7 +461,7 @@ FDD_SYSRG:
 FDD_SEEK:
         srl     a
         call    vg_cmd_seek
-;       call    vg_wait_busy
+        ;call    vg_wait_busy
 
         call    vg_wait_index
         jr      z,.iok

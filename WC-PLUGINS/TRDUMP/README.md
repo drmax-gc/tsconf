@@ -1,6 +1,6 @@
 ## TRDump v0.72
 
-#### Wild commander plugin
+#### Wild Commander plugin
 
 ###### (read&write .trd image)
 

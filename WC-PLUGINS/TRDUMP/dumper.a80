@@ -81,6 +81,8 @@ DUMPER_LOOP:
         pop     af
         jp      nz,.err_file
 
+        call    FDD_INIT : jp c,.err_ndsk
+
         ld      de,0            ;d - track      ;e - sector
         ld      a,(TRDTRACKS)
         ld      b,a
@@ -282,18 +284,6 @@ DUMPER_LOOP:
         ld      (ix + WC_WINDOW_2.cur_pos),3
         jp      DUMPER_LOOP
 
-Filler:
-        ld d,h
-        ld e,l
-        ld a,#10
-.filler ld hl,mis_text
-        ld bc,#10
-        ldir
-        dec a
-        or a
-        jr nz, .filler
-        ret
-
 ;///////////////////////////////////
 KEY_R:  ld      a,#FB           ;FBFE - QWERT
         in      a,(#FE)
@@ -307,9 +297,9 @@ KEY_I:  ld      a,#DF           ;DFFE - POIUY
         in      a,(#FE)
         bit     2,a             ;I
         ret
-KEY_G:  ld  a,#fd
-        in  a,(#fe)
-        bit 4,a
+KEY_G:  ld      a,#FD           ;FDFE - ASDFG
+        in      a,(#FE)
+        bit     4,a             ;G
         ret
 KEY_SPACE:
         ld      a,#7F
@@ -335,15 +325,25 @@ WAIT_ESC_KEY:
 CLEAR_BUFF:
         push    bc,de,hl
         ld      hl,TRACKBUFF
-        ld b, #10
-.lp_fill
-        push bc
-        call Filler
-        ex de,hl
-        pop bc
-        djnz .lp_fill
+        ld      b,#10
+.lp     push    bc
+        call    Filler
+        ex      de,hl
+        pop     bc
+        djnz    .lp
         pop     hl,de,bc
         ret
+
+Filler: ld      d,h
+        ld      e,l
+        ld      a,#10
+.filler ld      hl,mis_text
+        ld      bc,#10
+        ldir
+        dec     a
+        jr      nz,.filler
+        ret
+
 ;///////////////////////////////////
 detectExtraTracks:
         call    findLastFile
@@ -387,8 +387,8 @@ SELECT:
         ld      a,(DRIVE)
         add     a,"A"
         ld      (txt_drive),a
-        xor a
-        ld (ignoreall_flag), a
+        xor     a
+        ld      (ignoreall_flag), a
 
         ld      ix,wc_win_dump_start
         call    PRWOW
