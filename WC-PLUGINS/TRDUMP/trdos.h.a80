@@ -1,0 +1,33 @@
+TRD_SIGN        EQU #10
+TRD_80DD        EQU #18
+
+        STRUCT  TRD_INFO
+free_sec_next   DB 0
+free_trk_next   DB 0
+type            DB TRD_80DD
+n_files         DB 0
+n_free_sec      DW #09F8
+sign            DB TRD_SIGN
+                DW 0
+blank9          DS 9,#20
+                DB 0
+deleted         DB 0
+title           DS 8,#20
+                DS 3,0
+        ENDS
+
+        STRUCT  TRD_9SEC
+                DB 0
+                DS 224,0
+                TRD_INFO
+        ENDS
+
+        STRUCT  TRD_FILE
+filename        DS      8       ;name of file
+type            DB      0       ;extention ("B", "C")
+start           DW      0       ;start address
+length          DW      0       ;length
+num_sectors     DB      0       ;sectors count
+sector          DB      0       ;start sector
+track           DB      0       ;start track
+        ENDS

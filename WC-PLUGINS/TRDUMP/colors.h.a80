@@ -1,0 +1,15 @@
+COL_BLACK               EQU     8
+COL_BLUE                EQU     1
+COL_RED                 EQU     2
+COL_MAGENTA             EQU     3
+COL_GREEN               EQU     4
+COL_CYAN                EQU     5
+COL_YELLOW              EQU     6
+COL_WHITE               EQU     7
+COL_BRIGHT_BLUE         EQU     9
+COL_BRIGHT_RED          EQU     10
+COL_BRIGHT_MAGENTA      EQU     11
+COL_BRIGHT_GREEN        EQU     12
+COL_BRIGHT_CYAN         EQU     13
+COL_BRIGHT_YELLOW       EQU     14
+COL_BRIGHT_WHITE        EQU     15

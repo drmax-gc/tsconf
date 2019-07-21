@@ -1,0 +1,379 @@
+;///////////////////////////////////////////////////////////////////////////////
+WRITER:
+        ld      bc,FDDVirt
+        ld      a,#80
+        out     (c),a
+;; DEHL - filesize
+        rr e : rr h
+        rr e : rr h
+        rr e : rr h
+        rr e : rr h
+        ld      a,h
+        ld      (TRDTRACKS),a
+
+        call    SetFont
+
+        call    SELECT_DRIVE : jp nz,.exit
+        call    FDD_INIT : jp c,.err_ndsk
+
+        ld      a,1
+        call    MNGC_PL
+        call    MakeTrackBuffer
+        ld      a,0
+        call    MNGC_PL
+
+        ld      a,0
+        ld      (exit_stat),a
+        dec     a
+        ld      (cfg_wdata),a
+
+        call    PRINT_WRITE_WINDOW
+
+        ld      de,0            ;d - track      ;e - sector
+
+        ld      a,(TRDTRACKS)
+        ld      b,a
+
+.lpt    ld      a,b
+        or      a
+        jp      z,.done
+
+;formatting track
+        ld      c,3             ;format counter
+.lpf
+        ld      a,d
+        ld      (TRACK),a
+        call    FDD_SEEK
+        jp      c,.err_ndsk
+        call    FDD_SYSRG
+
+        ld      a,(COL_RED << 4) | COL_BRIGHT_YELLOW
+        ld      (HDCOL),a
+        ld      a,SYM_F
+        ld      (HDSYM),a
+        call    PRINT_HD
+        call    PRINT_TRACK
+
+        ld      a,1
+        push    bc, de, hl
+        call    MNGC_PL
+        pop     hl, de, bc
+
+        push    bc, de, hl
+        call    FDD_FORMAT_TRACK
+        pop     hl, de, bc
+
+        ld      a,0
+        push    bc, de, hl
+        call    MNGC_PL
+        pop     hl, de, bc
+
+        jr      nc,.fok
+        cp      ERROR_NODISK
+        jp      z,.err_ndsk
+        cp      ERROR_WRPROTECT
+        jp      z,.err_wrp
+        jp      .err_format
+.fok
+        ld      a,(cfg_wdata)
+        or      a
+        jp      z,.vok
+;load track data
+        ld      hl,TRACKBUFF
+        push    bc,de,hl
+        ld      b,8
+        call    LOAD512
+        pop     hl,de,bc
+
+;writing data
+        ld      a,(COL_GREEN << 4) | COL_BRIGHT_YELLOW
+        ld      (HDCOL),a
+        ld      a,SYM_W
+        ld      (HDSYM),a
+        call    PRINT_HD
+.lps
+        ld      a,e
+        ld      (SECTOR),a
+
+        call    PRINT_TRACK
+
+        push    bc,de,hl
+        call    FDD_WRITE_SECTOR
+        pop     hl,de,bc
+
+        jr      nc,.ok
+        cp      ERROR_NODISK
+        jp      z,.err_ndsk
+        cp      ERROR_WRPROTECT
+        jp      z,.err_wrp
+        cp      ERROR_BREAK
+        jp      z,.break
+
+.ok
+        push    de
+        ld      de,256
+        add     hl,de
+        pop     de
+
+        inc     e       ;inc sector
+        ld      a,e
+        and     #0F
+        ld      e,a
+        jr      nz,.lps
+;track saved
+
+;verify sectors
+        ld      a,SYM_V
+        ld      (HDSYM),a
+        call    PRINT_HD
+
+        call    VERIFY
+        jr      nc,.vok
+        dec     c
+        jp      nz,.lpf
+
+        ld      a,(COL_RED << 4) | COL_BRIGHT_RED
+        ld      (HDCOL),a
+.vok    ld      a,SYM_DB
+        ld      (HDSYM),a
+        call    PRINT_HD
+
+        inc     d       ;inc track
+        dec     b
+        jp      .lpt
+
+.break
+        call    FDD_STOP
+        ld      ix,wc_win_error
+        ld      de,txt_break
+        ld      (ix+WC_WINDOW_1.wnd_txt),de
+        call    PRWOW
+        call    WAIT_ESC_KEY
+        call    RRESB
+        jr      .exit
+
+.done
+        call    FDD_RESTORE
+
+.exit
+        call    FDD_STOP
+
+        ld      ix,wc_win_dump
+        call    RRESB
+
+        ld      bc,FDDVirt
+        ld      a,0
+        out     (c),a
+
+        ld      bc,2
+        call    TURBOPL
+
+;; restore font
+        call    SetFont
+
+        ld      a,(exit_stat)
+        ret
+
+.err_format
+        call    FDD_STOP
+
+        ld      ix,wc_win_error
+        ld      de,txt_eformat
+        ld      (ix+WC_WINDOW_1.wnd_txt),de
+        call    PRWOW
+        call    WAIT_ESC_KEY
+        call    RRESB
+        jp      .exit
+
+.err_wrp
+        call    FDD_STOP
+
+        ld      ix,wc_win_error
+        ld      de,txt_wrp
+        ld      (ix+WC_WINDOW_1.wnd_txt),de
+        call    PRWOW
+        call    WAIT_ESC_KEY
+        call    RRESB
+        jp      .exit
+
+.err_write
+        push    bc, de, hl
+
+        ld      ix,wc_win_error_rai
+        call    PRWOW
+.lpk    ei : halt
+        call    KEY_R   : jr z,.retry
+        call    KEY_A   : jr z,.abort
+        call    KEY_I   : jr z,.ignore
+        jr      .lpk
+
+.retry  ld      ix,wc_win_error_rai
+        call    RRESB
+        pop     hl, de, bc
+        jp      .lpt
+
+.abort  ld      ix,wc_win_error_rai
+        call    RRESB
+        pop     hl, de, bc
+        jp      .done
+
+.ignore ld      ix,wc_win_error_rai
+        call    RRESB
+
+        ld      a,(COL_RED << 4) | COL_BRIGHT_YELLOW
+        ld      (HDCOL),a
+        pop     hl, de, bc
+        jp      .ok
+
+.err_ndsk
+        cp      ERROR_NOFDD
+        jr      z,.err_nfdd
+
+        call    FDD_STOP
+
+        ld      ix,wc_win_error
+        ld      de,txt_nodisk
+        ld      (ix+WC_WINDOW_1.wnd_txt),de
+        call    PRWOW
+        call    WAIT_ESC_KEY
+        call    RRESB
+        jp      .exit
+
+.err_nfdd
+        call    FDD_STOP
+
+        ld      ix,wc_win_error
+        ld      de,txt_nofdd
+        ld      (ix+WC_WINDOW_1.wnd_txt),de
+        call    PRWOW
+        call    WAIT_ESC_KEY
+        call    RRESB
+        jp      .exit
+
+.err_file
+        ld      ix,wc_win_error_file_exist
+        call    PRWOW
+        call    WAIT_ESC_KEY
+        ld      ix,wc_win_error_file_exist
+        call    RRESB
+        jp      .exit
+
+;///////////////////////////////////////////////////////////////////////////////
+;i: track buffer
+;
+VERIFY:
+        push    bc, de, hl
+
+        ld      hl,TRACKBUFF
+
+        ld      e,0
+.chlp
+        ld      a,e
+        ld      (SECTOR),a
+
+        call    PRINT_TRACK
+
+        push    bc ,de ,hl
+        call    FDD_CHECK_SECTOR
+        pop     hl, de, bc
+
+        ld      a,(verify_error)
+        or      a
+        jr      nz,.bad
+
+        push    de
+        ld      de,256
+        add     hl,de
+        pop     de
+
+        inc     e
+        ld      a,e
+        and     #0F
+        ld      e,a
+        jr      nz,.chlp
+
+        pop     hl, de, bc
+        xor     a
+        ret
+
+.bad    pop     hl, de, bc
+        scf
+        ret
+
+;///////////////////////////////////////////////////////////////////////////////
+PRINT_WRITE_WINDOW:
+        ld      ix,wc_win_dump
+        ld      de,txt_hdr_write
+        ld      (ix+WC_WINDOW_1.hdr_txt),de
+        ld      a,(COL_RED << 4) | COL_BRIGHT_WHITE
+PRINT_DWIN:
+        ld      (ix+WC_WINDOW_1.attr),a
+        call    PRWOW
+        call    PRINT_DUMP_BAR
+        ld      ix,wc_win_dump
+        ld      de,#0908
+        call    GADRW
+        push    hl
+        ld      a,(TRDTRACKS)
+        call    A2DEC8
+        ld      hl,NUMBUFF
+        pop     de
+        ld      bc,3
+        ldir
+        ret
+
+;///////////////////////////////////////////////////////////////////////////////
+SELECT_DRIVE:
+        ld      ix,wc_win_select_drive
+        call    PRWOW
+        call    CURSOR
+.lp     ei : halt
+        call    UPPP    : call nz,cur_up
+        call    DWWW    : call nz,cur_dn
+        call    ESC     : jr nz,.esc
+        call    ENKE    : jr z,.lp
+
+        ld      a,(ix + WC_WINDOW_2.cur_pos)
+        sub     2
+        ld      (DRIVE),a
+        call    RRESB
+        xor     a
+        ret
+
+.esc    call    RRESB
+        ld      a,1
+        ld      (exit_stat),a
+        xor     a
+        dec     a
+        ret
+
+cur_up: ld      a,(ix + WC_WINDOW_2.cur_pos)
+        cp      2
+        ret     z
+        call    CURSER
+        ld      a,(ix + WC_WINDOW_2.cur_pos)
+        dec     a
+        cp      7
+        jr      nz,.f
+        sub     1
+.f      ld      (ix + WC_WINDOW_2.cur_pos),a
+        ld      hl,(ix + WC_WINDOW_2.wnd_txt)
+        ld      de,#0101
+        call    TXTPR
+        jp      CURSOR
+
+cur_dn: ld      a,(ix + WC_WINDOW_2.cur_pos)
+        cp      (ix + WC_WINDOW_2.cur_stop)
+        ret     nc
+        call    CURSER
+
+        ld      a,(ix + WC_WINDOW_2.cur_pos)
+        inc     a
+        cp      7
+        jp      nz,.f
+        ld      a,8
+.f      ld      (ix + WC_WINDOW_2.cur_pos),a
+        ld      hl,(ix + WC_WINDOW_2.wnd_txt)
+        ld      de,#0101
+        call    TXTPR
+        jp      CURSOR

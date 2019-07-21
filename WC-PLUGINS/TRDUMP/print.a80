@@ -1,0 +1,106 @@
+NUMBUFF DEFB    "00000"
+A2DEC8:
+        ld      hl,NUMBUFF
+        ld      (hl),#2F
+        inc     (hl)
+        sub     100
+        jr      nc,$-2-1
+        add     a,100
+        inc     hl
+        ld      (hl),#2F
+        inc     (hl)
+        sub     10
+        jr      nc,$-2-1
+        add     a,10
+        inc     hl
+        add     a,"0"
+        ld      (hl),a
+        ret
+
+A2HEX8: push    af
+        rra
+        rra
+        rra
+        rra
+        or      0xF0
+        daa
+        add     0xA0
+        adc     0x40
+        ld      (hl),a
+        inc     hl
+        pop     af
+        or      0xF0
+        daa
+        add     0xA0
+        adc     0x40
+        ld      (hl),a
+        inc     hl
+        ret
+
+ASC2NUM8H:
+        ld      a,(hl)
+        call    uppercase
+        sub     #30
+        jr      nc,$+2+1
+        xor     a
+        cp      17
+        jr      c,1F
+        sub     7
+        cp      #10
+        jr      c,1F
+        ld      a,#0F
+1       add     a,a
+        add     a,a
+        add     a,a
+        add     a,a
+        ld      c,a
+        inc     hl
+        ld      a,(hl)
+        call    uppercase
+        sub     #30
+        jr      nc,$+2+1
+        xor     a
+        cp      17
+        jr      c,2F
+        sub     7
+        cp      #10
+        jr      c,2F
+        ld      a,#0F
+2       or      c
+        ret
+
+uppercase:
+        cp      #61
+        ret     c
+        cp      #7B
+        jr      c,1F
+        cp      #A0
+        ret     c
+        cp      #B0
+        jr      c,1F
+        sub     #30
+        cp      #C0
+        ret     nc
+1       sub     #20
+        ret
+
+;i: *BC - text
+;o: HL - number
+ASC2NUM16D:
+        ld      hl,0
+.lp     ld      a,(bc)
+        sub     #30
+        cp      10
+        ret     nc
+        inc     bc
+        add     hl,hl
+        ld      e,l
+        ld      d,h
+        add     hl,hl
+        add     hl,hl
+        add     hl,de
+        add     a,l
+        ld      l,a
+        jr      nc,.lp
+        inc     h
+        jr      .lp

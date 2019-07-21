@@ -1,0 +1,314 @@
+READ_SECTORS:
+.lpt    ld      a,d
+        ld      (TRACK),a
+        call    FDD_SEEK
+        jp      c,.err_ndsk
+        call    FDD_SYSRG
+        call    CLEAR_BUFF
+
+.lps    ld      a,b
+        or      a
+        jr      z,.done
+
+        ld      a,e
+        ld      (SECTOR),a
+
+        push    bc,de,hl
+        call    FDD_READ_SECTOR
+        pop     hl,de,bc
+
+        jr      nc,.ok
+        cp      ERROR_NODISK
+        jr      z,.err_ndsk
+        cp      ERROR_READ
+        jr      z,.err_read
+        cp      ERROR_BREAK
+        jr      z,.break
+        jr      .err_read
+
+.done   ret
+
+.err_read
+        push    bc, de, hl
+
+        ld      ix,wc_win_error_rai
+        call    PRWOW
+.lpk    ei : halt
+        call    KEY_R   : jr z,.retry
+        call    KEY_A   : jr z,.abort
+        call    KEY_I   : jr z,.ignore
+        jr      .lpk
+
+.retry
+        ld      ix,wc_win_error_rai
+        call    RRESB
+        pop     hl, de, bc
+        jr      .lpt
+
+.abort  ld      ix,wc_win_error_rai
+        call    RRESB
+        pop     hl, de, bc
+        ld      a,-1
+        jr      .exit
+
+.ignore ld      ix,wc_win_error_rai
+        call    RRESB
+
+        pop     hl, de, bc
+
+.ok     push    de
+        ld      de,256
+        add     hl,de
+        pop     de
+
+        dec     b
+
+        inc     e
+        ld      a,e
+        and     #0F
+        ld      e,a
+        jr      nz,.lps
+        inc     d
+        jp      .lpt
+
+.break  call    FDD_STOP
+        ld      ix,wc_win_error
+        ld      de,txt_break
+        ld      (ix+WC_WINDOW_1.wnd_txt),de
+        call    PRWOW
+        call    WAIT_ESC_KEY
+        call    RRESB
+        jr      .exit
+
+.err_ndsk
+        cp      ERROR_NOFDD
+        jr      z,.err_nfdd
+
+        call    FDD_STOP
+        ld      ix,wc_win_error
+        ld      de,txt_nodisk
+        ld      (ix+WC_WINDOW_1.wnd_txt),de
+        call    PRWOW
+        call    WAIT_ESC_KEY
+        call    RRESB
+.exit   ld      a,-1
+        ret
+
+.err_nfdd
+        call    FDD_STOP
+        ld      ix,wc_win_error
+        ld      de,txt_nofdd
+        ld      (ix+WC_WINDOW_1.wnd_txt),de
+        call    PRWOW
+        call    WAIT_ESC_KEY
+        call    RRESB
+        jr      .exit
+;///////////////////////////////////////////////////////////////////////////////
+findLastFile:
+        ld      b,0
+.lp     push    bc
+        ld      a,b
+        call    getAddrFile
+        pop     bc
+        inc     b
+        ld      a,b
+        cp      129
+        jr      z,.end
+        ld      h,(ix+TRD_FILE.track)
+        ld      l,(ix+TRD_FILE.sector)
+        ld      a,(ix+TRD_FILE.filename)
+        or      l
+        or      h
+        jr      nz,.lp
+.end    ld      a,b
+        dec     a
+        ret
+;;
+getAddrFile:
+        ld      l,a:ld h,0
+        add     hl,hl:add hl,hl:add hl,hl:add hl,hl
+        ld      bc,CATALOGUE
+        add     hl,bc
+        ld      a,l:ld ixl,a:ld a,h:ld ixh,a
+        ret
+
+addNumsec:
+        ld      a,l
+2       inc     a
+        and     #0F
+        jr      nz,1F
+        inc     h
+1       djnz    2B
+        ld      l,a
+        ret
+;///////////////////////////////////////////////////////////////////////////////
+;i:
+;  E - sector
+;  D - track
+;o:
+;  IX - filename ptr
+whereHead:
+        ld      a,(last_file_num)
+        call    getAddrFile
+        ld      h,(ix+TRD_FILE.track)
+        ld      l,(ix+TRD_FILE.sector)
+        ld      b,(ix+TRD_FILE.num_sectors)
+        ld      a,h
+        or      l
+        jr      nz,1F
+        ld      ix,.emtpyfile
+        ret
+
+1       call    addNumsec
+        cp      e
+        ret     nz
+        ld      a,h
+        cp      d
+        ret     nz
+        ld      a,(last_file_num)
+        inc     a
+        ld      (last_file_num),a
+.getadr jr      getAddrFile
+
+.emtpyfile
+        DS      8, #B0
+        DB      #B0
+        DW      0
+        DW      0
+        DB      0
+        DB      0
+        DB      0
+last_file_num
+        DB      0
+last_file_ptr
+        DW      CATALOGUE
+;///////////////////////////////////////////////////////////////////////////////
+READ_CAT:
+        ld      hl,CATALOGUE
+        ld      de,0
+        ld      b,9
+        call    READ_SECTORS
+        ret
+
+PRINT_FILE:
+        push    af,bc,de,hl
+        ld      l,a
+        ld      h,0
+        add     hl,hl
+        add     hl,hl
+        add     hl,hl
+        add     hl,hl
+        ld      bc,CATALOGUE
+        add     hl,bc
+        ld      ix,wc_win_trdos
+        ld      bc,8
+        push    hl,de
+        call    PRSRW
+        pop     de,hl
+        ld      bc,8
+        add     hl,bc
+        ld      a,e
+        add     a,9
+        ld      e,a
+        ld      bc,1
+        call    PRSRW
+        pop     hl,de,bc,af
+        ret
+
+PRINT_CAT:
+        push    af
+        ld      ix,wc_win_trdos
+        call    PRWOW
+        pop     af
+        ld      de,#0206
+        ld      b,20
+.lp     call    PRINT_FILE
+        inc     a
+        inc     d
+        djnz    .lp
+        ret
+
+cat_cursor
+        DB      0
+
+BROWSE_CAT:
+        ld      a,2
+        ld      ix,wc_win_trdos
+        ld      (ix + WC_WINDOW_2.cur_pos),a
+        xor     a
+        call    PRINT_CAT
+        ld      a,1
+        ex      af,af
+        call    YN
+        call    CURSOR
+.lp     ei : halt
+        call    UPPP    : call nz,.cur_up
+        call    DWWW    : call nz,.cur_dn
+        xor     a
+        ex      af,af
+        call    YN
+        call    ENKE    : jr z,.lp
+        call    CURSER
+        call    RRESB
+        ld      a,-1
+        ex      af,af
+        jp      YN
+
+.cur_up
+        ld      a,(ix + WC_WINDOW_2.cur_pos)
+        cp      2
+        jr      z,.scrollup
+        call    CURSER
+        ld      a,(ix + WC_WINDOW_2.cur_pos)
+        dec     a
+        ld      (ix + WC_WINDOW_2.cur_pos),a
+        jp      CURSOR
+
+.cur_dn
+        ld      a,(ix + WC_WINDOW_2.cur_pos)
+        cp      21
+        jr      z,.scrolldown
+        call    CURSER
+        ld      a,(ix + WC_WINDOW_2.cur_pos)
+        inc     a
+        ld      (ix + WC_WINDOW_2.cur_pos),a
+        jp      CURSOR
+
+.scrollup
+        ld      a,(cat_cursor)
+        or      a
+        ret     z
+        dec     a
+        ld      (cat_cursor),a
+        call    PRINT_CAT
+        jp      CURSOR
+
+.scrolldown
+        ld      a,(cat_cursor)
+        cp      128-20
+        ret     z
+        inc     a
+        ld      (cat_cursor),a
+        call    PRINT_CAT
+        jp      CURSOR
+
+;//////////////////////////// Windows
+wc_win_trdos            //WC_WINDOW_2
+/*type*/                DB      #C2+3
+/*cur_col_mask*/        DB      0
+/*xy_pos*/              DB      28,3
+/*xy_size*/             DB      22,25
+/*attr*/                DB      (COL_CYAN << 4) | COL_BRIGHT_WHITE
+/*res0*/                DB      0
+/*restore_addr*/        DW      0
+/*div0*/                DB      0
+/*div1*/                DB      2
+/*cur_pos*/             DB      2
+/*cur_stop*/            DB      8
+/*cur_col*/             DB      (COL_BRIGHT_YELLOW << 4) | 0
+/*win_col*/             DB      (COL_BRIGHT_YELLOW << 4) | 0
+/*hdr_txt*/             DW      txt_hdr_trdos
+/*ftr_txt*/             DW      txt_ftr_trdos
+/*wnd_txt*/             DW      0
+txt_hdr_trdos           DB      #09,#0E,"Catalogue",0
+txt_ftr_trdos           DB      0

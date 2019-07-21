@@ -1,0 +1,347 @@
+;//////////////////////////////////////////////////////////////
+;/////////////////////// TRD Dumper v0.71  ////////////////////
+;//////////////////////////////////////////////////////////////
+;//                  by Doctor Max 13-Dec-2017               //
+;//                          Jun-2018                        //
+;//                          Mar-2019                        //
+;//                          Jul-2019                        //
+;//                    https://t.me/drmax_gc                 //
+;//////////////////////////////////////////////////////////////
+FDDVirt         EQU     #29AF
+;////////////////////////////
+SYM_R           EQU     1
+SYM_W           EQU     2
+SYM_V           EQU     3
+SYM_F           EQU     4
+SYM_BROKEN      EQU     5
+SYM_DB          EQU     6
+SYM_FE          EQU     7
+;////////////////////////////
+START:  push    af, de, hl
+        call    GEDPL
+        ld      bc,1
+        call    TURBOPL
+        pop     hl, de, af
+        or      a
+        jp      z,WRITER
+        cp      4
+        jp      z,WRITER
+        cp      3
+        ret     nz
+        jp      DUMPER
+
+;///////////////////////////////////
+SetFont:
+        ld      a,#FF
+        call    MNGC_PL
+
+        ld      hl,UDG
+        ld      a,SYM_DB
+        call    SetFontSym
+        ld      a,#B0
+        call    SetFontSym
+        ld      a,#B1
+        call    SetFontSym
+        ld      a,SYM_R
+        call    SetFontSym
+        ld      a,SYM_W
+        call    SetFontSym
+        ld      a,SYM_V
+        call    SetFontSym
+        ld      a,SYM_F
+        call    SetFontSym
+        ld      a,SYM_BROKEN
+        call    SetFontSym
+        ld      a,SYM_FE
+
+;; swap symbols between font & udg
+SetFontSym:
+        push    hl
+        ld      l,a
+        ld      h,0
+        add     hl,hl
+        add     hl,hl
+        add     hl,hl
+        ld      de,#C000
+        add     hl,de
+        ex      de,hl
+        pop     hl
+        ld      b,8
+.lp     ld      c,(hl)
+        ld      a,(de)
+        ld      (hl),a
+        ld      a,c
+        ld      (de),a
+        inc     hl
+        inc     de
+        djnz    .lp
+        ret
+
+UDG
+; [SYM_DB]
+        DB      %00000000
+        DB      %01111110
+        DB      %01111110
+        DB      %01111110
+        DB      %01111110
+        DB      %01111110
+        DB      %01111110
+        DB      %01111110
+
+        DB      %00000000
+        DB      %01111110
+        DB      %01000010
+        DB      %01000010
+        DB      %01000010
+        DB      %01000010
+        DB      %01000010
+        DB      %01111110
+
+        DB      %00000000
+        DB      %01111110
+        DB      %01000010
+        DB      %01011010
+        DB      %01011010
+        DB      %01011010
+        DB      %01000010
+        DB      %01111110
+; [R]
+        DB      %00000000
+        DB      %01111110
+        DB      %01000110
+        DB      %01011010
+        DB      %01001110
+        DB      %01011010
+        DB      %01011010
+        DB      %01111110
+; [W]
+        DB      %00000000
+        DB      %01111110
+        DB      %01011010
+        DB      %01011010
+        DB      %01000010
+        DB      %01000010
+        DB      %01100110
+        DB      %01111110
+; [V]
+        DB      %00000000
+        DB      %01111110
+        DB      %01100010
+        DB      %01011110
+        DB      %01011110
+        DB      %01011110
+        DB      %01100010
+        DB      %01111110
+; [F]
+        DB      %00000000
+        DB      %01111110
+        DB      %01000010
+        DB      %01011110
+        DB      %01000110
+        DB      %01011110
+        DB      %01011110
+        DB      %01111110
+
+        DB      %00000000
+        DB      %01111110
+        DB      %01111110
+        DB      %01101110
+        DB      %01010100
+        DB      %00111010
+        DB      %01111110
+        DB      %01111110
+
+        DB      %00000000
+        DB      %00000000
+        DB      %00111100
+        DB      %00111100
+        DB      %00111100
+        DB      %00111100
+        DB      %00000000
+        DB      %00000000
+
+;////////////////////////////
+exit_stat               DB      0
+cfg_wdata               DB      0
+dump_count              DB      0
+preview                 DB      0
+detect                  DB      0
+;////////////////////////////
+tmp_filename            DB      #00
+                        DS      16
+filename                DB      #00                     ;flag 0x00 - file; 0x01 - dir
+                        DD      80*2*16*256             ;filesize trd image
+                        DB      "TRDump00.TRD", #00
+filesizes               DD      80*2*16*256
+                        DD      81*2*16*256
+                        DD      82*2*16*256
+                        DD      83*2*16*256
+                        DD      84*2*16*256
+                        DD      85*2*16*256
+                        DD      86*2*16*256
+                        DD      87*2*16*256
+TRDTRACKS               DB      160                     ;number of tracks (160 by default)
+
+;//////////////////////////// Windows
+wc_win_warning          //WC_WINDOW_1
+/*type*/                DB      #81+3
+/*cur_col_mask*/        DB      0
+/*xy_pos*/              DB      24,11
+/*xy_size*/             DB      32,5
+/*attr*/                DB      (COL_WHITE << 4) | COL_BRIGHT_WHITE
+/*res0*/                DB      0
+/*restore_addr*/        DW      0
+/*div0*/                DB      0
+/*div1*/                DB      0
+/*hdr_txt*/             DW      0
+/*ftr_txt*/             DW      0
+/*wnd_txt*/             DW      txt_wait_while_file_creating
+
+wc_win_error            //WC_WINDOW_1
+/*type*/                DB      #81+3
+/*cur_col_mask*/        DB      0
+/*xy_pos*/              DB      24,11
+/*xy_size*/             DB      32,5
+/*attr*/                DB      (COL_RED << 4) | COL_BRIGHT_WHITE
+/*res0*/                DB      0
+/*restore_addr*/        DW      0
+/*div0*/                DB      0
+/*div1*/                DB      0
+/*hdr_txt*/             DW      0
+/*ftr_txt*/             DW      0
+/*wnd_txt*/             DW      0
+
+txt_wrp                 DB      #0D, #0E, "Write protect!", 0
+txt_eformat             DB      #0D, #0E, "Format error!", 0
+txt_nodisk              DB      #0D, #0E, "No disk", 0
+txt_nofdd               DB      #0D, #0E, "No drive", 0
+txt_break               DB      #0D, #0E, "Break", 0
+txt_wait_while_file_creating
+                        DB      #0D, #0E, "Please wait", #0D
+                        DB      #0E, "while file creating...",0
+
+wc_win_error_file_exist //WC_WINDOW_1
+/*type*/                DB      #81+3
+/*cur_col_mask*/        DB      0
+/*xy_pos*/              DB      24,11
+/*xy_size*/             DB      32,6
+/*attr*/                DB      (COL_RED << 4) | COL_BRIGHT_WHITE
+/*res0*/                DB      0
+/*restore_addr*/        DW      0
+/*div0*/                DB      0
+/*div1*/                DB      0
+/*hdr_txt*/             DW      txt_hdr_error
+/*ftr_txt*/             DW      0
+/*wnd_txt*/             DW      txt_file_exist
+txt_hdr_error           DB      #0E, 9, " Error ", 0
+txt_file_exist          DB      #0D, #0E, COL_YELLOW, COL_YELLOW, "Dump file exist!"
+                        DB      #0D, #0D, #0E, COL_WHITE, COL_WHITE, "Please rename and repeat.", 0
+
+HOTKEY_COLOR    EQU     COL_YELLOW
+
+wc_win_error_rai        //WC_WINDOW_1
+/*type*/                DB      #81+3
+/*cur_col_mask*/        DB      0
+/*xy_pos*/              DB      24,10
+/*xy_size*/             DB      32,7
+/*attr*/                DB      (COL_RED << 4) | COL_BRIGHT_WHITE
+/*res0*/                DB      0
+/*restore_addr*/        DW      0
+/*div0*/                DB      0
+/*div1*/                DB      0
+/*hdr_txt*/             DW      txt_hdr_error
+/*ftr_txt*/             DW      0
+/*wnd_txt*/             DW      txt_wnd_rai
+txt_wnd_rai             DB      #0D, #0D, #0D, #0D
+                        DB      #0E
+                        DB      "[", HOTKEY_COLOR, HOTKEY_COLOR, "R", COL_WHITE, COL_WHITE, "]etry "
+                        DB      "[", HOTKEY_COLOR, HOTKEY_COLOR, "A", COL_WHITE, COL_WHITE, "]bort "
+                        DB      "[", HOTKEY_COLOR, HOTKEY_COLOR, "I", COL_WHITE, COL_WHITE, "]gnore", 0
+txt_wnd_rai_add         DB      "Current file:", 0
+
+
+wc_win_select_drive     //WC_WINDOW_2 2,0,32,10,15,8,0x7F,0,0,0,0,2,5,0xF0,0,txt_hdr_select,0,txt_wnd_select
+/*type*/                DB      #C2+3
+/*cur_col_mask*/        DB      0
+/*xy_pos*/              DB      32,10
+/*xy_size*/             DB      15,8
+/*attr*/                DB      (COL_WHITE << 4) | COL_BRIGHT_WHITE
+/*res0*/                DB      0
+/*restore_addr*/        DW      0
+/*div0*/                DB      0
+/*div1*/                DB      0
+/*cur_pos*/             DB      2
+/*cur_stop*/            DB      5
+/*cur_col*/             DB      (COL_CYAN << 4) | COL_BRIGHT_WHITE
+/*win_col*/             DB      0
+/*hdr_txt*/             DW      txt_hdr_select
+/*ftr_txt*/             DW      0
+/*wnd_txt*/             DW      txt_wnd_select
+txt_hdr_select          DB      #0E, 9, " Write to: ", 0
+txt_wnd_select          DB      #0D
+                        DB      #0E, "Drive [A]", #0D
+                        DB      #0E, "Drive [B]", #0D
+                        DB      #0E, "Drive [C]", #0D
+                        DB      #0E, "Drive [D]", 0
+
+wc_win_dump             //WC_WINDOW_1
+/*type*/                DB      #81+3
+/*cur_col_mask*/        DB      0
+/*xy_pos*/              DB      22,8
+/*xy_size*/             DB      32+4,11
+/*attr*/                DB      (COL_GREEN << 4) | COL_BRIGHT_WHITE
+/*res0*/                DB      0
+/*restore_addr*/        DW      0
+/*div0*/                DB      0
+/*div1*/                DB      2
+/*hdr_txt*/             DW      txt_hdr_dump
+/*ftr_txt*/             DW      0
+/*wnd_txt*/             DW      txt_wnd_dump
+txt_hdr_dump            DB      #0E, 9, " Dumping... ", 0
+txt_hdr_write           DB      #0E, 9, " Writing... ", 0
+txt_wnd_dump            DB      #0C, 8, "Tracks:", #0B, 17, "T/S:", 0
+
+wc_win_dump_start       //WC_WINDOW_2
+/*type*/                DB      #C2+3
+/*cur_col_mask*/        DB      0
+/*xy_pos*/              DB      26,8
+/*xy_size*/             DB      28,10
+/*attr*/                DB      (COL_WHITE << 4) | COL_BRIGHT_WHITE
+/*res0*/                DB      0
+/*restore_addr*/        DW      0
+/*div0*/                DB      0
+/*div1*/                DB      2
+/*cur_pos*/             DB      2
+/*cur_stop*/            DB      8
+/*cur_col*/             DB      (COL_CYAN << 4) | COL_BRIGHT_WHITE
+/*win_col*/             DB      0
+/*hdr_txt*/             DW      txt_hdr_dstart
+/*ftr_txt*/             DW      0
+/*wnd_txt*/             DW      txt_wnd_dstart
+
+txt_hdr_dstart          DB      #0E, 9, " Select ", 0
+txt_wnd_dstart          DB      #0D
+                        DB      "        Drive:", 8, #FE
+                        DW      txt_drive
+                        DB      #0D
+                        DB      "     Filename:", 8, #FE
+                        DW      txt_filename
+                        DB      #0D
+                        DB      "       Tracks:", 8, #FE
+                        DW      txt_tracks
+                        DB      #0D
+                        DB      "      Preview:", 8, #FE
+                        DW      txt_preview
+                        DB      #0D
+                        DB      "Detect tracks:", 8, #FE
+                        DW      txt_detect
+                        DB      #0D,#0D
+                        DB      #0E, "[", COL_YELLOW, COL_YELLOW, " Just DUMP IT ", COL_WHITE, COL_WHITE, "]"
+                        DB      0
+txt_filename            DB      "TRDump00", 0
+txt_drive               DB      "A", 0
+txt_tracks              DB      "80", 0
+txt_preview             DB      "No ", 0
+txt_detect              DB      "No ", 0
+txt_Y                   DB      "Yes"
+txt_N                   DB      "No "
