@@ -1,4 +1,4 @@
-## TRDump v0.71
+## TRDump v0.72
 
 #### Wild commander plugin
 
