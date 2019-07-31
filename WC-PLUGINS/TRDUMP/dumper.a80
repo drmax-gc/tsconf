@@ -221,6 +221,10 @@ DUMPER_LOOP:
 
 .retry  call    RESTORE_RIA
         pop     hl, de, bc
+        ld      a, e
+        inc     a
+        and     #0F
+        jp      nz, .lps
         jp      .lpt
 
 .abort  call    RESTORE_RIA
