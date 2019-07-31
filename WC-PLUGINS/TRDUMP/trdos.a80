@@ -19,7 +19,7 @@ READ_SECTORS:
 
         jr      nc,.ok
         cp      ERROR_NODISK
-        jr      z,.err_ndsk
+        jp      z,.err_ndsk
         cp      ERROR_READ
         jr      z,.err_read
         cp      ERROR_BREAK
@@ -30,13 +30,16 @@ READ_SECTORS:
 
 .err_read
         push    bc, de, hl
-
+        ld a, (ignoreall_flag)
+        or a
+        jr nz,.subign
         ld      ix,wc_win_error_rai
         call    PRWOW
 .lpk    ei : halt
         call    KEY_R   : jr z,.retry
         call    KEY_A   : jr z,.abort
         call    KEY_I   : jr z,.ignore
+        call    KEY_G   : jr z,.ignoreall
         jr      .lpk
 
 .retry
@@ -54,7 +57,7 @@ READ_SECTORS:
 .ignore ld      ix,wc_win_error_rai
         call    RRESB
 
-        pop     hl, de, bc
+.subign pop     hl, de, bc
 
 .ok     push    de
         ld      de,256
@@ -70,6 +73,11 @@ READ_SECTORS:
         jr      nz,.lps
         inc     d
         jp      .lpt
+
+.ignoreall
+        ld a,1
+        ld (ignoreall_flag), a
+        jr .ignore
 
 .break  call    FDD_STOP
         ld      ix,wc_win_error
