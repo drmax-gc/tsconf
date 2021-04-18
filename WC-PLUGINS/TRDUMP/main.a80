@@ -1,7 +1,10 @@
+EMUL EQU 0
+
         DEVICE ZXSPECTRUM128
 
         INCLUDE "wc_api.h.a80"
         INCLUDE "trdos.h.a80"
+        INCLUDE "scl.h.a80"
         INCLUDE "colors.h.a80"
 
 startCode
@@ -17,158 +20,113 @@ mainStart
         INCLUDE "fdd.a80"
         INCLUDE "trdos.a80"
         INCLUDE "print.a80"
+        INCLUDE "ram.a80"
 
-        IFUSED PRWOW
 PRWOW:
         ld      a,_PRWOW
         jp      _WCAPI
-        ENDIF
 
-        IFUSED RRESB
 RRESB:
         ld      a,_RRESB
         jp      _WCAPI
-        ENDIF
 
-        IFUSED PRSRW
 PRSRW:
         ld      a,_PRSRW
         jp      _WCAPI
-        ENDIF
 
-        IFUSED TXTPR
 TXTPR:
         ld      a,_TXTPR
         jp      _WCAPI
-        ENDIF
 
-        IFUSED GADRW
 GADRW:
-        ld a,_GADRW
-        jp _WCAPI
-        ENDIF
+        ld      a,_GADRW
+        jp      _WCAPI
 
-        IFUSED CURSOR
 CURSOR:
-        ld a,_CURSOR
-        jp _WCAPI
-        ENDIF
+        ld      a,_CURSOR
+        jp      _WCAPI
 
-        IFUSED CURSER
 CURSER:
-        ld a,_CURSER
-        jp _WCAPI
-        ENDIF
+        ld      a,_CURSER
+        jp      _WCAPI
 
-        IFUSED YN
 YN:     
-        ld a,_YN
-        jp _WCAPI
-        ENDIF
+        ld      a,_YN
+        jp      _WCAPI
 
-        IFUSED ISTR
 ISTR:
-        ld a,_ISTR
-        jp _WCAPI
-        ENDIF
+        ld      a,_ISTR
+        jp      _WCAPI
 
-        IFUSED GEDPL
 GEDPL:
-        ld a,_GEDPL
-        jp _WCAPI
-        ENDIF
+        ld      a,_GEDPL
+        jp      _WCAPI
 
-        IFUSED MKfile
 MKfile:
-        ld a,_MKfile
-        jp _WCAPI
-        ENDIF
+        ld      a,_MKfile
+        jp      _WCAPI
 
-        IFUSED DelFl
 DelFl:
-        ld a,_DelFl
-        jp _WCAPI
-        ENDIF
+        ld      a,_DelFl
+        jp      _WCAPI
 
-        IFUSED MKdir
 MKdir:
-        ld a,_MKdir
-        jp _WCAPI
-        ENDIF
+        ld      a,_MKdir
+        jp      _WCAPI
 
-        IFUSED LOAD512
 LOAD512:
-        ld a,_LOAD512
-        jp _WCAPI
-        ENDIF
+        ld      a,_LOAD512
+        jp      _WCAPI
 
-        IFUSED SAVE512
 SAVE512:
-        ld a,_SAVE512
-        jp _WCAPI
-        ENDIF
+        ld      a,_SAVE512
+        jp      _WCAPI
 
-        IFUSED MNGCVPL
 MNGCVPL:
         exa
-        ld a,_MNGCVPL
-        jp _WCAPI
-        ENDIF
+        ld      a,_MNGCVPL
+        jp      _WCAPI
 
-        IFUSED MNGC_PL
 MNGC_PL:
         exa
-        ld a,_MNGC_PL
-        jp _WCAPI
-        ENDIF
+        ld      a,_MNGC_PL
+        jp      _WCAPI
 
-        IFUSED ESC
 ESC:
-        ld a,_ESC
-        jp _WCAPI
-        ENDIF
+        ld      a,_ESC
+        jp      _WCAPI
 
-        IFUSED ENKE
 ENKE:
-        ld a,_ENKE
-        jp _WCAPI
-        ENDIF
+        ld      a,_ENKE
+        jp      _WCAPI
 
-        IFUSED NUSP
 NUSP:
-        ld a,_NUSP
-        jp _WCAPI
-        ENDIF
+        ld      a,_NUSP
+        jp      _WCAPI
 
-        IFUSED USPO
 USPO:
-        ld a,_USPO
-        jp _WCAPI
-        ENDIF
+        ld      a,_USPO
+        jp      _WCAPI
 
-        IFUSED UPPP
 UPPP:   
-        ld a,_UPPP
-        jp _WCAPI
-        ENDIF
+        ld      a,_UPPP
+        jp      _WCAPI
 
-        IFUSED DWWW
 DWWW:
-        ld a,_DWWW
-        jp _WCAPI
-        ENDIF
+        ld      a,_DWWW
+        jp      _WCAPI
 
-        IFUSED TURBOPL
 TURBOPL:
-        ld a,_TURBOPL
-        jp _WCAPI
-        ENDIF
-
+        ld      a,_TURBOPL
+        jp      _WCAPI
 mainEnd
         ENT
 endCode
 
-CATALOGUE       EQU endCode
+CATALOGUE       EQU high mainEnd+1<<8
 TRACKBUFF       EQU CATALOGUE + (9 * 256)
+
+        DISPLAY "Catalogue:", CATALOGUE
+        DISPLAY "Track buffer:", TRACKBUFF
 
         SAVEBIN "TRDUMP.WMF", startCode, endCode-startCode

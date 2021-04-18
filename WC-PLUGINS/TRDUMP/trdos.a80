@@ -1,3 +1,5 @@
+;///////////////////////////////////////////////////////////////////////////////
+
 READ_SECTORS:
 .lpt    ld      a,d
         ld      (TRACK),a
@@ -30,34 +32,27 @@ READ_SECTORS:
 
 .err_read
         push    bc, de, hl
-        ld a, (ignoreall_flag)
-        or a
-        jr nz,.subign
-        ld      ix,wc_win_error_rai
-        call    PRWOW
+
+        ld      ix,wc_win_error_rai : call PRWOW
 .lpk    ei : halt
         call    KEY_R   : jr z,.retry
         call    KEY_A   : jr z,.abort
         call    KEY_I   : jr z,.ignore
-        call    KEY_G   : jr z,.ignoreall
         jr      .lpk
 
 .retry
-        ld      ix,wc_win_error_rai
-        call    RRESB
+        ld      ix,wc_win_error_rai : call RRESB
         pop     hl, de, bc
         jr      .lpt
 
-.abort  ld      ix,wc_win_error_rai
-        call    RRESB
+.abort  ld      ix,wc_win_error_rai : call RRESB
         pop     hl, de, bc
         ld      a,-1
         jr      .exit
 
-.ignore ld      ix,wc_win_error_rai
-        call    RRESB
+.ignore ld      ix,wc_win_error_rai : call RRESB
 
-.subign pop     hl, de, bc
+        pop     hl, de, bc
 
 .ok     push    de
         ld      de,256
@@ -73,11 +68,6 @@ READ_SECTORS:
         jr      nz,.lps
         inc     d
         jp      .lpt
-
-.ignoreall
-        ld a,1
-        ld (ignoreall_flag), a
-        jr .ignore
 
 .break  call    FDD_STOP
         ld      ix,wc_win_error
@@ -195,8 +185,7 @@ READ_CAT:
         ld      hl,CATALOGUE
         ld      de,0
         ld      b,9
-        call    READ_SECTORS
-        ret
+        jp      READ_SECTORS
 
 PRINT_FILE:
         push    af,bc,de,hl
@@ -225,8 +214,7 @@ PRINT_FILE:
 
 PRINT_CAT:
         push    af
-        ld      ix,wc_win_trdos
-        call    PRWOW
+        ld      ix,wc_win_trdos : call PRWOW
         pop     af
         ld      de,#0206
         ld      b,20

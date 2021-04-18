@@ -9,24 +9,27 @@ DUMPER:
         xor     a
         ld      (dump_count),a
 
+        call    PRINT_DUMP_WINDOW
+        call    PRINT_DUMP_BAR
+
 DUMPER_LOOP:
         ld      a,160
         ld      (TRDTRACKS),a
         sub     160
         srl     a
         add     a,"0"
-        ld      (txt_tracks+1),a
+        ld      (txt_cylinders+1),a
 
-        call    SELECT : jp nz,.exit
+        call    SELECT_DUMPER : jp nz,.exit
 
-        ld      bc,1
-        call    TURBOPL
-
+        ld      bc,1 : call TURBOPL
+        IF EMUL == 0
         call    FDD_INIT : jp c,.err_ndsk
+        ENDIF
 
-        ld      bc,2
-        call    TURBOPL
+        ld      bc,2 : call TURBOPL
 
+        IF EMUL == 0
         call    READ_CAT
         or      a
         jp      nz,.no_dump
@@ -37,10 +40,10 @@ DUMPER_LOOP:
 
         call    BROWSE_CAT
         jp      nz,.no_dump
+        ENDIF
 
 .no_preview
-        ld      bc,1
-        call    TURBOPL
+        ld      bc,1 : call TURBOPL
 
         xor     a
         ld      (last_file_num),a
@@ -70,18 +73,17 @@ DUMPER_LOOP:
         ld      bc,4
         ldir
 
-        ld      ix,wc_win_warning
-        call    PRWOW
-        ld      hl,filename
-        call    MKfile
+        ld      ix,wc_win_wait_creating : call PRWOW
+        ld      hl,filename : call MKfile
 
         push    af
-        ld      ix,wc_win_warning
-        call    RRESB
+        ld      ix,wc_win_wait_creating : call RRESB
         pop     af
         jp      nz,.err_file
 
+        IF EMUL == 0
         call    FDD_INIT : jp c,.err_ndsk
+        ENDIF
 
         ld      de,0            ;d - track      ;e - sector
         ld      a,(TRDTRACKS)
@@ -93,30 +95,53 @@ DUMPER_LOOP:
 
         call    CLEAR_BUFF
 
+        call    PRINT_SECTOR_BAR
+
+.lpt_retry
         ld      hl,TRACKBUFF
         ld      a,d
         ld      (TRACK),a
-        call    FDD_SEEK
-        jp      c,.err_ndsk
-        call    FDD_SYSRG
 
-        ld      a,(COL_GREEN << 4) | COL_BRIGHT_CYAN
-        ld      (HDCOL),a
-        ld      a,#B1
-        ld      (HDSYM),a
-        ld      a,SYM_DB
-        ld      (RDSYM),a
+        IF EMUL == 0
+        call    FDD_SEEK: jp c,.err_ndsk
+        call    FDD_SYSRG
+        ENDIF
+
+;set default symbol and color
+        ld      a,(COL_GREEN << 4) | COL_BRIGHT_YELLOW : ld (HDCOL),a
+        ld      a,SYM_HALF_SQR : ld (HDSYM),a
+        ld      a,SYM_FULL_SQR : ld (RDSYM),a
         call    PRINT_HD
+
+        xor     a
+        ld      (ignore_flag),a
 
 .lps    ld      a,e
         ld      (SECTOR),a
 
+;set default symbol and color
+        ld      a,(COL_GREEN << 4) | COL_BRIGHT_YELLOW : ld (HDCOL),a
+        ld      a,SYM_HALF_SQR : ld (HDSYM),a
+        ld      a,SYM_FULL_SQR : ld (RDSYM),a
+        call    PRINT_SEC
+
+        IF EMUL != 0
+        ei
+        halt : halt
+        ENDIF
         call    PRINT_TRACK
+
+        IF EMUL == 0
         call    PRINT_WHAT_FILE
 
         push    bc,de,hl
         call    FDD_READ_SECTOR
         pop     hl,de,bc
+        ENDIF
+
+        IF EMUL != 0
+        xor a
+        ENDIF
 
         jr      nc,.ok
         cp      ERROR_NODISK
@@ -128,8 +153,7 @@ DUMPER_LOOP:
         jp      .err_read
 
 .no_dump
-        ld      ix,wc_win_dump
-        call    RRESB
+        ld      ix,wc_win_dump : call RRESB
 
 ;; delete dump file
         ld      hl,filename+1+4
@@ -147,25 +171,34 @@ DUMPER_LOOP:
         add     hl,de
         pop     de
 
+        ld      a,(RDSYM) : ld (HDSYM),a
+        call    PRINT_SEC
+
         inc     e       ;inc sector
         ld      a,e
         and     #0F
         ld      e,a
+        ld      (SECTOR),a
         jr      nz,.lps
 
-        ld      a,(RDSYM)
-        ld      (HDSYM),a
+        ld      a,(ignore_flag)
+        or      a
+        jr      z,.noignoredsectors
+        ld      a,(COL_GREEN << 4) | COL_BRIGHT_RED : ld (HDCOL),a
+        ld      a,SYM_BROKEN : ld (HDSYM),a : ld (RDSYM),a
+        jr      1F
+.noignoredsectors
+        ld      a,SYM_FULL_SQR
+1       ld      (HDSYM),a
+        ld      (RDSYM),a
         call    PRINT_HD
-
-        inc     d       ;inc track
 
 ;; save track
         push    bc,de,hl
-        ld      hl,TRACKBUFF
-        ld      b,8
-        call    SAVE512
+        ld      hl,TRACKBUFF : ld b,8 : call SAVE512
         pop     hl,de,bc
 
+        inc     d       ;inc track
         dec     b
         jp      .lpt
 
@@ -177,27 +210,23 @@ DUMPER_LOOP:
         call    PRWOW
         call    WAIT_ESC_KEY
         call    RRESB
-        ld      ix,wc_win_dump
-        call    RRESB
-        jr      .no_dump
+        ld      ix,wc_win_dump : call RRESB
+        jp      .no_dump
 
 .done   call    FDD_RESTORE
-        ld      ix,wc_win_dump
-        call    RRESB
+        ld      ix,wc_win_dump : call RRESB
         call    FILENAME_AUTOINC
         jp      DUMPER_LOOP
 
 .exit   call    FDD_STOP
 
-        ld      ix,wc_win_dump
-        call    RRESB
+        ld      ix,wc_win_dump : call RRESB
 
         ld      bc,FDDVirt
         ld      a,0
         out     (c),a
 
-        ld      bc,2
-        call    TURBOPL
+        ld      bc,2 : call TURBOPL
 
 ;; restore font
         call    SetFont
@@ -206,9 +235,9 @@ DUMPER_LOOP:
 
 .err_read
         push    bc, de, hl
-        ld a, (ignoreall_flag)
-        or a
-        jr nz,.subign
+        ld      a, (ignoreall_flag)
+        or      a
+        jr      nz,.subign
         ld      hl,txt_wnd_rai_add
         call    PRINT_RIA
 
@@ -221,37 +250,37 @@ DUMPER_LOOP:
 
 .retry  call    RESTORE_RIA
         pop     hl, de, bc
-        ld      a, e
-        inc     a
-        and     #0F
-        jp      nz, .lps
-        jp      .lpt
+        jp      .lpt_retry
 
 .abort  call    RESTORE_RIA
         pop     hl, de, bc
         jp      .no_dump
 
 .ignore call    RESTORE_RIA
-.subign ld      a,(COL_GREEN << 4) | COL_BRIGHT_RED
-        ld      (HDCOL),a
-        ld      a,SYM_BROKEN
-        ld      (RDSYM),a
+        call    FDD_INIT : : jr c,.err_ndsk
 
-;// fill ignored sector with text
+.subign ld      a,1
+        ld      (ignore_flag),a
+        ld      a,(COL_GREEN << 4) | COL_BRIGHT_RED : ld (HDCOL),a
+        ld      a,SYM_BROKEN : ld (RDSYM),a
 
+;fill ignored sector with text
         pop hl
         push hl
         call Filler
 
-;// TODO: put ignored sector to table
+;TODO: put ignored sector to table
 
         pop     hl, de, bc
+
+;restore track after fdd init
+        ld      a,d
+        ld      (TRACK),a
         jp      .ok
 
 .ignoreall
-        ld a,1
-        ld (ignoreall_flag), a
-        jr .ignore
+        ld      a,1 : ld (ignoreall_flag),a : ld (ignore_flag),a
+        jr      .ignore
 
 .err_ndsk
         cp      ERROR_NOFDD
@@ -259,10 +288,7 @@ DUMPER_LOOP:
 
         call    FDD_STOP
 
-        ld      ix,wc_win_error
-        ld      de,txt_nodisk
-        ld      (ix+WC_WINDOW_1.wnd_txt),de
-        call    PRWOW
+        ld      ix,wc_win_error : ld de,txt_nodisk : ld (ix + WC_WINDOW_1.wnd_txt),de : call PRWOW
         call    WAIT_ESC_KEY
         call    RRESB
         jp      .no_dump
@@ -270,20 +296,15 @@ DUMPER_LOOP:
 .err_nfdd
         call    FDD_STOP
 
-        ld      ix,wc_win_error
-        ld      de,txt_nofdd
-        ld      (ix+WC_WINDOW_1.wnd_txt),de
-        call    PRWOW
+        ld      ix,wc_win_error : ld de,txt_nofdd : ld (ix + WC_WINDOW_1.wnd_txt),de : call PRWOW
         call    WAIT_ESC_KEY
         call    RRESB
         jp      .no_dump
 
 .err_file
-        ld      ix,wc_win_error_file_exist
-        call    PRWOW
+        ld      ix,wc_win_error_file_exist : call PRWOW
         call    WAIT_ESC_KEY
-        ld      ix,wc_win_error_file_exist
-        call    RRESB
+        ld      ix,wc_win_error_file_exist : call RRESB
         ld      ix,wc_win_dump_start
         ld      (ix + WC_WINDOW_2.cur_pos),3
         jp      DUMPER_LOOP
@@ -353,17 +374,15 @@ detectExtraTracks:
         call    findLastFile
         dec     a
         call    getAddrFile
-        ld      h,(ix+TRD_FILE.track)
-        ld      l,(ix+TRD_FILE.sector)
-        ld      b,(ix+TRD_FILE.num_sectors)
+        ld      h,(ix + TRD_FILE.track)
+        ld      l,(ix + TRD_FILE.sector)
+        ld      b,(ix + TRD_FILE.num_sectors)
         call    addNumsec
         ld      a,h
         ret
 ;///////////////////////////////////
 FILENAME_AUTOINC:
-        ld      a,(dump_count)
-        inc     a
-        ld      (dump_count),a
+        ld      a,(dump_count) : inc a : ld (dump_count),a
         ld      hl,txt_filename+6
         call    A2HEX8
         ld      hl,txt_filename
@@ -375,8 +394,7 @@ FILENAME_AUTOINC:
 ;i: HL - text
 PRINT_RIA:
         push    hl
-        ld      ix,wc_win_error_rai
-        call    PRWOW
+        ld      ix,wc_win_error_rai :  call PRWOW
         pop     hl
         ld      de,#0204+4
         call    TXTPR
@@ -384,292 +402,48 @@ PRINT_RIA:
         jp      PRINT_CURRENT_FILE
 
 RESTORE_RIA:
-        ld      ix,wc_win_error_rai
-        jp      RRESB
-;///////////////////////////////////
-SELECT:
-        ld      a,(DRIVE)
-        add     a,"A"
-        ld      (txt_drive),a
-        xor     a
-        ld      (ignoreall_flag), a
-
-        ld      ix,wc_win_dump_start
-        call    PRWOW
-.lp1    call    CURSOR
-.lp     ei : halt
-        call    UPPP    : call nz,cur_up
-        call    DWWW    : call nz,cur_dn
-        call    ESC     : jr nz,.esc
-        call    ENKE    : jr z,.lp
-
-        ld      a,(ix + WC_WINDOW_2.cur_pos)
-        cp      2
-        jp      z,.seldrv
-        cp      3
-        jp      z,.selfnm
-        cp      4
-        jp      z,.seltracks
-        cp      5
-        jp      z,.selprev
-        cp      6
-        jr      z,.seldetect
-        cp      7
-        jr      z,.selretry
-        cp      8
-        jp      z,.selsector
-        cp      10
-        jr      nz,.lp
-
-        call    RRESB
-        xor     a
-        ret
-
-.esc    call    RRESB
-        ld      a,1
-        ld      (exit_stat),a
-        xor     a
-        dec     a
-        ret
-
-.seltracks
-        ld      a,(TRDTRACKS)
-        add     a,2
-        cp      172
-        jr      nz,$+4
-        ld      a,160
-        ld      (TRDTRACKS),a
-        sub     160
-        srl     a
-        add     a,"0"
-        ld      (txt_tracks+1),a
-;; filesize calc
-        ld      a,(TRDTRACKS)
-        sub     160
-        add     a,a
-        ld      l,a
-        ld      h,0
-        ld      de,filesizes
-        add     hl,de
-        ld      de,filename+1
-        ld      bc,4
-        ldir
-
-        call    CURSER
-        ld      hl,(ix + WC_WINDOW_2.wnd_txt)
-        ld      de,#0101
-        call    TXTPR
-        jp      .lp1
-
-.seldetect
-        ld      a,(detect)
-        xor     1
-        ld      (detect),a
-        ld      hl,txt_Y
-        jr      nz,$+2+3
-        ld      hl,txt_N
-        ld      de,txt_detect
-        ld      bc,3
-        ldir
-        ld      hl,(ix + WC_WINDOW_2.wnd_txt)
-        ld      de,#0101
-        call    TXTPR
-        jp      .lp1
-
-.selretry
-        call CURSER
-        ex af,af'
-        exx
-        ld a,#FD
-        ld hl,2
-        exx
-        ex af,af'
-        ld hl,txt_retry
-        ld de,#070F
-        ld bc,#0200
-        call ISTR
-
-.lpr2   halt
-        call ENKE
-        jp nz,.entr
-
-        ex af,af'
-        ld a,0
-        ex af,af'
-        call ISTR
-        ex af,af'
-        ld a,2
-        ex af,af'
-        call ISTR
-        jr .lpr2
-
-        ld hl,(ix + WC_WINDOW_2.wnd_txt)
-        ld de,#0101
-        call TXTPR
-        jp .lp1
-
-.entr   ex af,af'
-        ld a,1
-        ex af,af'
-        call ISTR
-        ld bc,txt_retry
-        call ASC2NUM16D
-        ld a,l
-        or a
-        jr nz,.put
-        inc a
-.put    ld (fdd_retry_cnt_s),a
-        call A2DEC8
-        ld hl,(NUMBUFF+1)
-        ld (txt_retry),hl
-        ld hl,(ix + WC_WINDOW_2.wnd_txt)
-        ld de,#0101
-        call TXTPR
-        jp .lp1
-
-.selsector
-        call CURSER
-        ex af,af'
-        exx
-        ld a,#FD
-        ld hl,2
-        exx
-        ex af,af'
-        ld hl,txt_seek
-        ld de,#080F
-        ld bc,#0200
-        call ISTR
-
-.lpr21  halt
-        call ENKE
-        jp nz,.entr1
-
-        ex af,af'
-        ld a,0
-        ex af,af'
-        call ISTR
-        ex af,af'
-        ld a,2
-        ex af,af'
-        call ISTR
-        jr .lpr21
-
-        ld hl,(ix + WC_WINDOW_2.wnd_txt)
-        ld de,#0101
-        call TXTPR
-        jp .lp1
-
-.entr1  ex  af,af'
-        ld a,1
-        ex af,af'
-        call ISTR
-        ld bc,txt_seek
-        call ASC2NUM16D
-        ld a,l
-        or a
-        jr nz,.put1
-        inc a
-.put1   ld (fdd_retry_cnt_t),a
-        call A2DEC8
-        ld hl,(NUMBUFF+1)
-        ld (txt_seek),hl
-        ld hl,(ix + WC_WINDOW_2.wnd_txt)
-        ld de,#0101
-        call TXTPR
-        jp .lp1
-    
-.seldrv
-        ld      a,(DRIVE)
-        inc     a
-        and     3
-        ld      (DRIVE),a
-        add     a,"A"
-        ld      (txt_drive),a
-
-        call    CURSER
-        ld      hl,(ix + WC_WINDOW_2.wnd_txt)
-        ld      de,#0101
-        call    TXTPR
-        jp      .lp1
-
-.selprev
-        ld      a,(preview)
-        xor     1
-        ld      (preview),a
-        ld      hl,txt_Y
-        jr      nz,$+2+3
-        ld      hl,txt_N
-        ld      de,txt_preview
-        ld      bc,3
-        ldir
-        call    CURSER
-        ld      hl,(ix + WC_WINDOW_2.wnd_txt)
-        ld      de,#0101
-        call    TXTPR
-        jp      .lp1
-
-.selfnm
-        call    CURSER
-
-        ex      af,af'
-        exx
-        ld      a,#FD
-        ld      hl,8
-        exx
-        ex      af,af'
-        ld      hl,txt_filename
-        ld      de,#030F
-        ld      bc,#0800
-        call    ISTR
-.lp2
-        halt
-        call    ENKE
-        jr      nz,.ent
-
-        ex      af,af'
-        ld      a,0
-        ex      af,af'
-        call    ISTR
-        ex      af,af'
-        ld      a,2
-        ex      af,af'
-        call    ISTR
-        jr      .lp2
-
-.ent    ex      af,af'
-        ld      a,1
-        ex      af,af'
-        call    ISTR
-        ld      hl,txt_filename
-        ld      de,filename+5
-        ld      bc,8
-        ldir
-        ex      hl,de
-        ld      (hl),"."
-
-        ld      hl,txt_filename+6
-        call    ASC2NUM8H
-        ld      (dump_count),a
-        ld      hl,txt_filename+6
-        call    A2HEX8
-        ld      hl,(ix + WC_WINDOW_2.wnd_txt)
-        ld      de,#0101
-        call    TXTPR
-        jp      .lp1
-
+        ld      ix,wc_win_error_rai : jp RRESB
 ;///////////////////////////////////////////////////////////////////////////////
 PRINT_DUMP_WINDOW:
         ld      ix,wc_win_dump
         ld      de,txt_hdr_dump
-        ld      (ix+WC_WINDOW_1.hdr_txt),de
+        ld      (ix + WC_WINDOW_1.hdr_txt),de
         ld      a,(COL_GREEN << 4) | COL_BRIGHT_WHITE
+        ld      (ix + WC_WINDOW_1.attr),a
+        call    PRWOW
+        call    PRINT_DUMP_BAR
+        call    PRINT_SECTOR_BAR
         jp      PRINT_DWIN
 ;//////////////////////////////////////////////////////////////
-HDCOL   DB      (COL_BLUE << 4) | COL_BRIGHT_CYAN
-HDSYM   DB      #B1
-RDSYM   DB      SYM_DB
+HDCOL   DB      (COL_GREEN << 4) | COL_BRIGHT_CYAN
+HDSYM   DB      SYM_EMPTY_SQR
+RDSYM   DB      SYM_FULL_SQR
 ;//////////////////////////////////////////////////////////////
-;print head
+PRINT_DUMP_BAR_W:
+        ld      c,(COL_RED << 4) | COL_YELLOW
+        ld      b,SYM_EMPTY_SQR
+        ld      (HDCOL),bc
+        jr      _PRINT_DUMP_BAR
+PRINT_DUMP_BAR:
+        ld      c,(COL_GREEN << 4) | COL_BRIGHT_CYAN
+        ld      b,SYM_EMPTY_SQR
+        ld      (HDCOL),bc
+_PRINT_DUMP_BAR:
+        ld      a,(TRDTRACKS)
+        ld      b,a
+        xor     a
+        ld      c,a
+.lp     ld      a,c
+        ld      (TRACK),a
+        cp      160
+        jr      c,.nx
+        ld      a,SYM_EXTRA_SQR
+        ld      (HDSYM),a
+.nx     call    PRINT_HD
+        inc     c
+        djnz    .lp
+        ret
+
 PRINT_HD:
         push    af, bc, de, hl
         ld      hl,#0202
@@ -679,20 +453,62 @@ PRINT_HD:
         rrca
         rrca
         rrca
-        rrca
-        and     #07
+        and     #0F
         ld      d,a
+
         ld      a,c
-        and     #1F
+        and     #0F
+        add     a,a
         ld      e,a
         add     hl,de
         ex      hl,de
-        ld      ix,wc_win_dump
-        call    GADRW
+        call    _PRINT_HD
+        pop     hl, de, bc, af
+        ret
+
+PRINT_SEC:
+        push    af, bc, de, hl
+        ld      a,(SECTOR)
+        add     a,a
+        add     a,2
+        ld      e,a
+        ld      d,#0F
+        call    _PRINT_HD
+        pop     hl, de, bc, af
+        ret
+
+_PRINT_HD:
+        push    bc
+        ld      ix,wc_win_dump : call GADRW
         ld      bc,(HDCOL)
-        ld      (hl),b
+        ld      (hl),b : inc l : inc b : ld (hl),b
+        dec     l
         set     7,l
-        ld      (hl),c
+        ld      (hl),c : inc l : ld (hl),c
+        pop     bc
+        ret
+
+PRINT_SECTOR_BAR_W:
+        push    af, bc, de, hl
+        ld      c,(COL_RED << 4) | COL_YELLOW
+        ld      b,SYM_EMPTY_SQR
+        jr      _PRINT_SECTOR_BAR
+PRINT_SECTOR_BAR:
+        push    af, bc, de, hl
+        ld      c,(COL_GREEN << 4) | COL_BRIGHT_CYAN
+        ld      b,SYM_EMPTY_SQR
+_PRINT_SECTOR_BAR:
+        ld      (HDCOL),bc
+        ld      c,0
+        ld      b,16
+.lp     ld      a,c
+        add     a,a
+        add     a,2
+        ld      e,a
+        ld      d,#0F
+        call    _PRINT_HD
+        inc     c
+        djnz    .lp
         pop     hl, de, bc, af
         ret
 
@@ -704,7 +520,7 @@ PRINT_TRACK:
         dec     d
         dec     d
         ld      a,(ix + WC_WINDOW_1.x_pos)
-        add     a,7
+        add     a,2
         ld      e,a
 
         call    GADRW
@@ -740,25 +556,6 @@ PRINT_TRACK:
         pop     hl, de, bc
         ret
 
-PRINT_DUMP_BAR:
-        ld      c,(COL_GREEN << 4) | COL_BRIGHT_CYAN
-        ld      b,#B0
-        ld      (HDCOL),bc
-        ld      a,(TRDTRACKS)
-        ld      b,a
-        xor     a
-        ld      c,a
-.lp     ld      a,c
-        ld      (TRACK),a
-        cp      160
-        jr      c,.nx
-        ld      a,SYM_FE
-        ld      (HDSYM),a
-.nx     call    PRINT_HD
-        inc     c
-        djnz    .lp
-        ret
-
 PRINT_WHAT_FILE:
         push    bc,de,hl
         call    whereHead
@@ -790,5 +587,242 @@ PRINT_CURRENT_FILE:
         jp      PRSRW
 
 curr_filename_buff:
-        DB      0, 0, 0, 0, 0, 0, 0, 0
-        DB      0, 0, 0, 0, 0, 0, 0, 0
+        DS      16
+
+;///////////////////////////////////
+SELECT_DUMPER:
+        ld      a,(DRIVE)
+        add     a,"A"
+        ld      (txt_drive),a
+        xor     a
+        ld      (ignoreall_flag), a
+
+        ld      ix,wc_win_dump_start : call PRWOW
+.lp1    call    CURSOR
+.lp     ei : halt
+        call    UPPP : call nz,cur_up
+        call    DWWW : call nz,cur_dn
+        call    ESC : jr nz,.esc
+        call    ENKE : jr z,.lp
+
+        ld      a,(ix + WC_WINDOW_2.cur_pos)
+        cp      2
+        jp      z,.seldrv
+        cp      3
+        jp      z,.selfnm
+        cp      4
+        jp      z,.seltracks
+        cp      5
+        jp      z,.selprev
+        cp      6
+        jp      z,.seldetect
+        cp      7
+        jp      z,.selretry
+        cp      8
+        jp      z,.selsector
+        cp      10
+        jr      nz,.lp
+
+        call    RRESB
+        xor a
+        ret
+
+.esc    call    RRESB
+        ld      a,1
+        ld      (exit_stat),a
+        xor     a
+        dec     a
+        ret
+
+.seltracks
+        ld      a,(TRDTRACKS)
+        add     a,2
+        cp      172
+        jr      nz,$+4
+        ld      a,160
+        ld      (TRDTRACKS),a
+        sub     160
+        srl     a
+        add     a,"0"
+        ld      (txt_cylinders+1),a
+;; filesize calc
+        ld      a,(TRDTRACKS)
+        sub     160
+        add     a,a
+        ld      l,a
+        ld      h,0
+        ld      de,filesizes
+        add     hl,de
+        ld      de,filename+1
+        ld      bc,4
+        ldir
+
+        call    CURSER
+        ld      hl,(ix + WC_WINDOW_2.wnd_txt) : ld de,#0101 : call TXTPR
+        jp      .lp1
+
+.seldetect
+        ld      a,(detect)
+        xor     1
+        ld      (detect),a
+        ld      hl,txt_Y
+        jr      nz,$+2+3
+        ld      hl,txt_N
+        ld      de,txt_detect
+        ld      bc,3
+        ldir
+        ld      hl,(ix + WC_WINDOW_2.wnd_txt) : ld de,#0101 : call TXTPR
+        jp      .lp1
+
+.selretry
+        call    CURSER
+        ex      af,af'
+        exx
+        ld      a,#FD
+        ld      hl,2
+        exx
+        ex      af,af'
+        ld      hl,txt_retry : ld de,#070F : ld bc,#0200 : call ISTR
+
+.lpr2   halt
+        call    ENKE : jp nz,.entr
+        ex      af,af'
+        ld      a,0
+        ex      af,af'
+        call    ISTR
+        ex      af,af'
+        ld      a,2
+        ex      af,af'
+        call    ISTR
+        jr      .lpr2
+
+        ld      hl,(ix + WC_WINDOW_2.wnd_txt) : ld de,#0101 : call TXTPR
+        jp      .lp1
+
+.entr   ex      af,af'
+        ld      a,1
+        ex      af,af'
+        call    ISTR
+        ld      bc,txt_retry
+        call    ASC2NUM16D
+        ld      a,l
+        or      a
+        jr      nz,.put
+        inc     a
+.put    ld      (fdd_retry_cnt_s),a
+        call    A2DEC8
+        ld      hl,(NUMBUFF+1)
+        ld      (txt_retry),hl
+        ld      hl,(ix + WC_WINDOW_2.wnd_txt) : ld de,#0101: call TXTPR
+        jp      .lp1
+
+.selsector
+        call    CURSER
+        ex      af,af'
+        exx
+        ld      a,#FD
+        ld      hl,2
+        exx
+        ex      af,af'
+        ld      hl,txt_seek : ld de,#080F : ld bc,#0200: call ISTR
+
+.lpr21  halt
+        call    ENKE
+        jp      nz,.entr1
+
+        ex      af,af'
+        ld      a,0
+        ex      af,af'
+        call    ISTR
+        ex      af,af'
+        ld      a,2
+        ex      af,af'
+        call    ISTR
+        jr      .lpr21
+
+.entr1  ex       af,af'
+        ld      a,1
+        ex      af,af'
+        call    ISTR
+        ld      bc,txt_seek
+        call    ASC2NUM16D
+        ld      a,l
+        or      a
+        jr      nz,.put1
+        inc     a
+.put1   ld      (fdd_retry_cnt_t),a
+        call    A2DEC8
+        ld      hl,(NUMBUFF+1)
+        ld      (txt_seek),hl
+        ld      hl,(ix + WC_WINDOW_2.wnd_txt) : ld de,#0101 : call TXTPR
+        jp      .lp1
+    
+.seldrv
+        ld      a,(DRIVE)
+        inc     a
+        and     3
+        ld      (DRIVE),a
+        add     a,"A"
+        ld      (txt_drive),a
+
+        call    CURSER
+        ld      hl,(ix + WC_WINDOW_2.wnd_txt) : ld de,#0101 : call TXTPR
+        jp      .lp1
+
+.selprev
+        ld      a,(preview)
+        xor     1
+        ld      (preview),a
+        ld      hl,txt_Y
+        jr      nz,$+2+3
+        ld      hl,txt_N
+        ld      de,txt_preview
+        ld      bc,3
+        ldir
+        call    CURSER
+        ld      hl,(ix + WC_WINDOW_2.wnd_txt) : ld de,#0101 :  call TXTPR
+        jp      .lp1
+
+.selfnm
+        call    CURSER
+
+        ex      af,af'
+        exx
+        ld      a,#FD
+        ld      hl,8
+        exx
+        ex      af,af'
+        ld      hl,txt_filename : ld de,#030F: ld bc,#0800 : call ISTR
+.lp2
+        halt
+        call    ENKE
+        jr      nz,.ent
+
+        ex      af,af'
+        ld      a,0
+        ex      af,af'
+        call    ISTR
+        ex      af,af'
+        ld      a,2
+        ex      af,af'
+        call    ISTR
+        jr      .lp2
+
+.ent    ex      af,af'
+        ld      a,1
+        ex      af,af'
+        call    ISTR
+        ld      hl,txt_filename
+        ld      de,filename+5
+        ld      bc,8
+        ldir
+        ex      hl,de
+        ld      (hl),"."
+
+        ld      hl,txt_filename+6
+        call    ASC2NUM8H
+        ld      (dump_count),a
+        ld      hl,txt_filename+6
+        call    A2HEX8
+        ld      hl,(ix + WC_WINDOW_2.wnd_txt) : ld de,#0101 : call TXTPR
+        jp      .lp1

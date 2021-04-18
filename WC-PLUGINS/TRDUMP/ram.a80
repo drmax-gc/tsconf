@@ -1,0 +1,99 @@
+
+        MODULE ram
+
+;A - track
+;HL - buffer
+loadTrack:
+        push    hl,de,bc
+        ld      d,a
+        ld      e,#00
+        ld      b,16
+.lp     call    loadSector
+        inc     e
+        djnz    .lp
+        pop     bc,de,hl
+        ret
+
+;A - track
+;HL - buffer
+saveTrack:
+        push    hl,de,bc
+        ld      d,a
+        ld      e,#00
+        ld      b,16
+.lp     call    saveSector
+        inc     e
+        djnz    .lp
+        pop     bc,de,hl
+        ret
+
+;E - sector
+;D - track
+;HL - buffer
+;$HL - buffer+256
+loadSector:
+        push    de,bc
+        push    hl
+        call    calcAddr
+        call    MNGCVPL
+        pop     de
+        ld      bc,256
+        ldir
+        ex      de,hl
+        pop     bc,de
+        ret
+
+;E - sector
+;D - track
+;HL - buffer
+;$HL - buffer+256
+saveSector:
+        push    de,bc
+        push    hl
+        call    calcAddr
+        call    MNGCVPL
+        pop     de
+        ex      de,hl
+        ld      bc,256
+        ldir
+        pop     bc,de
+        ret
+
+;E - sector
+;D - track
+clearSector:
+        call    calcAddr
+        call    MNGCVPL
+        xor a
+.lp     ld (hl),a
+        inc l
+        jr nz,.lp
+        ret
+
+;E - sector
+;D - track
+;$A - page
+;$HL - addr
+calcAddr:
+        ld      a,d
+        and     #03
+        add     a,a
+        add     a,a
+        add     a,a
+        add     a,a
+        or      #C0
+        ld      h,a
+
+        ld      a,e
+        and     #0F
+        or      h
+        ld      h,a
+        ld      l,#00
+
+        ld      a,d
+        sra     a
+        sra     a
+        and     #3F
+        ret
+
+        ENDMODULE

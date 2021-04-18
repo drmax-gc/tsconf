@@ -1,30 +1,37 @@
 ;//////////////////////////////////////////////////////////////
-;/////////////////////// TRD Dumper v0.72  ////////////////////
+;/////////////////////// TRD Dumper v0.82  ////////////////////
 ;//////////////////////////////////////////////////////////////
 ;//                  by Doctor Max 13-Dec-2017               //
 ;//                          Jun-2018                        //
 ;//                          Mar-2019                        //
 ;//                          Jul-2019                        //
+;//                          Feb-2021                        //
 ;//                    https://t.me/drmax_gc                 //
 ;//////////////////////////////////////////////////////////////
 FDDVirt         EQU     #29AF
 ;////////////////////////////
-SYM_R           EQU     1
-SYM_W           EQU     2
-SYM_V           EQU     3
-SYM_F           EQU     4
-SYM_BROKEN      EQU     5
-SYM_DB          EQU     6
-SYM_FE          EQU     7
+SCREEN_W        EQU     90
 ;////////////////////////////
-START:  push    af, de, hl
+SYM_R           EQU     1
+SYM_W           EQU     3
+SYM_V           EQU     5
+SYM_F           EQU     7
+SYM_BROKEN      EQU     9
+SYM_EMPTY_SQR   EQU     11
+SYM_HALF_SQR    EQU     13
+SYM_FULL_SQR    EQU     15
+SYM_EXTRA_SQR   EQU     17
+
+;////////////////////////////
+START:  push    af, bc, de, hl
         call    GEDPL
-        ld      bc,1
-        call    TURBOPL
-        pop     hl, de, af
+        ld      bc,1 : call TURBOPL
+        pop     hl, de, bc, af
         or      a
         jp      z,WRITER
         cp      4
+        jp      z,WRITER
+        cp      #12
         jp      z,WRITER
         cp      3
         ret     nz
@@ -36,23 +43,15 @@ SetFont:
         call    MNGC_PL
 
         ld      hl,UDG
-        ld      a,SYM_DB
-        call    SetFontSym
-        ld      a,#B0
-        call    SetFontSym
-        ld      a,#B1
-        call    SetFontSym
-        ld      a,SYM_R
-        call    SetFontSym
-        ld      a,SYM_W
-        call    SetFontSym
-        ld      a,SYM_V
-        call    SetFontSym
-        ld      a,SYM_F
-        call    SetFontSym
-        ld      a,SYM_BROKEN
-        call    SetFontSym
-        ld      a,SYM_FE
+        ld      a,SYM_FULL_SQR : call SetFontSym
+        ld      a,SYM_EMPTY_SQR : call SetFontSym
+        ld      a,SYM_HALF_SQR : call SetFontSym
+        ld      a,SYM_R : call SetFontSym
+        ld      a,SYM_W : call SetFontSym
+        ld      a,SYM_V : call SetFontSym
+        ld      a,SYM_F : call SetFontSym
+        ld      a,SYM_BROKEN : call SetFontSym
+        ld      a,SYM_EXTRA_SQR
 
 ;; swap symbols between font & udg
 SetFontSym:
@@ -66,7 +65,7 @@ SetFontSym:
         add     hl,de
         ex      de,hl
         pop     hl
-        ld      b,8
+        ld      b,16
 .lp     ld      c,(hl)
         ld      a,(de)
         ld      (hl),a
@@ -78,89 +77,178 @@ SetFontSym:
         ret
 
 UDG
-; [SYM_DB]
-        DB      %00000000
-        DB      %01111110
-        DB      %01111110
-        DB      %01111110
-        DB      %01111110
-        DB      %01111110
-        DB      %01111110
-        DB      %01111110
+;[SYM_FULL_SQR]
+        DG      --------
+        DG      -#######
+        DG      -#######
+        DG      -#######
+        DG      -#######
+        DG      -#######
+        DG      -#######
+        DG      -#######
 
-        DB      %00000000
-        DB      %01111110
-        DB      %01000010
-        DB      %01000010
-        DB      %01000010
-        DB      %01000010
-        DB      %01000010
-        DB      %01111110
+        DG      --------
+        DG      #######-
+        DG      #######-
+        DG      #######-
+        DG      #######-
+        DG      #######-
+        DG      #######-
+        DG      #######-
 
-        DB      %00000000
-        DB      %01111110
-        DB      %01000010
-        DB      %01011010
-        DB      %01011010
-        DB      %01011010
-        DB      %01000010
-        DB      %01111110
-; [R]
-        DB      %00000000
-        DB      %01111110
-        DB      %01000110
-        DB      %01011010
-        DB      %01001110
-        DB      %01011010
-        DB      %01011010
-        DB      %01111110
-; [W]
-        DB      %00000000
-        DB      %01111110
-        DB      %01011010
-        DB      %01011010
-        DB      %01000010
-        DB      %01000010
-        DB      %01100110
-        DB      %01111110
-; [V]
-        DB      %00000000
-        DB      %01111110
-        DB      %01100010
-        DB      %01011110
-        DB      %01011110
-        DB      %01011110
-        DB      %01100010
-        DB      %01111110
-; [F]
-        DB      %00000000
-        DB      %01111110
-        DB      %01000010
-        DB      %01011110
-        DB      %01000110
-        DB      %01011110
-        DB      %01011110
-        DB      %01111110
+;[SYM_EMPTY_SQR]
+        DG      --------
+        DG      -#######
+        DG      -##-----
+        DG      -##-----
+        DG      -##-----
+        DG      -##-----
+        DG      -##-----
+        DG      -#######
 
-        DB      %00000000
-        DB      %01111110
-        DB      %01111110
-        DB      %01101110
-        DB      %01010100
-        DB      %00111010
-        DB      %01111110
-        DB      %01111110
+        DG      --------
+        DG      #######-
+        DG      -----##-
+        DG      -----##-
+        DG      -----##-
+        DG      -----##-
+        DG      -----##-
+        DG      #######-
 
-        DB      %00000000
-        DB      %00000000
-        DB      %00111100
-        DB      %00111100
-        DB      %00111100
-        DB      %00111100
-        DB      %00000000
-        DB      %00000000
+;[SYM_HALF_SQR]
+        DG      --------
+        DG      -#######
+        DG      -##-----
+        DG      -##--###
+        DG      -##--###
+        DG      -##--###
+        DG      -##-----
+        DG      -#######
 
+        DG      --------
+        DG      #######-
+        DG      -----##-
+        DG      ###--##-
+        DG      ###--##-
+        DG      ###--##-
+        DG      -----##-
+        DG      #######-
+
+;[SYM_R]
+        DG      --------
+        DG      -#######
+        DG      -##-----
+        DG      -##--###
+        DG      -##-----
+        DG      -##--###
+        DG      -##--###
+        DG      -#######
+
+        DG      --------
+        DG      #######-
+        DG      ----###-
+        DG      ####--#-
+        DG      ----###-
+        DG      ###--##-
+        DG      ####--#-
+        DG      #######-
+
+;[SYM_W]
+        DG      --------
+        DG      -#######
+        DG      -#--####
+        DG      -#--###-
+        DG      -##--##-
+        DG      -##--#-#
+        DG      -###--##
+        DG      -#######
+
+        DG      --------
+        DG      #######-
+        DG      ####--#-
+        DG      -###--#-
+        DG      -##--##-
+        DG      #-#--##-
+        DG      ##--###-
+        DG      #######-
+
+;[SYM_V]
+        DG      --------
+        DG      -#######
+        DG      -###----
+        DG      -##--###
+        DG      -##--###
+        DG      -##--###
+        DG      -###----
+        DG      -#######
+
+        DG      --------
+        DG      #######-
+        DG      ------#-
+        DG      #######-
+        DG      #######-
+        DG      #######-
+        DG      ------#-
+        DG      #######-
+
+;[SYM_F]
+        DG      --------
+        DG      -#######
+        DG      -#------
+        DG      -#--####
+        DG      -#------
+        DG      -#--####
+        DG      -#--####
+        DG      -#######
+
+        DG      --------
+        DG      #######-
+        DG      ------#-
+        DG      #######-
+        DG      ---####-
+        DG      #######-
+        DG      #######-
+        DG      #######-
+
+;[SYM_BROKEN]
+        DG      --------
+        DG      -#######
+        DG      -#######
+        DG      -##--###
+        DG      -#----##
+        DG      ---##---
+        DG      -#####--
+        DG      -#######
+
+        DG      --------
+        DG      #######-
+        DG      ##--###-
+        DG      #----##-
+        DG      --##--#-
+        DG      -####---
+        DG      ######--
+        DG      #######-
+
+;[SYM_EXTRA]
+        DG      --------
+        DG      -#######
+        DG      -##-----
+        DG      -##---#-
+        DG      -##----#
+        DG      -##---#-
+        DG      -##-----
+        DG      -#######
+
+        DG      --------
+        DG      #######-
+        DG      -----##-
+        DG      -#---##-
+        DG      #----##-
+        DG      -#---##-
+        DG      -----##-
+        DG      #######-
 ;////////////////////////////
+ignore_flag             DB      0
 ignoreall_flag          DB      0
 exit_stat               DB      0
 cfg_wdata               DB      0
@@ -185,10 +273,10 @@ TRDTRACKS               DB      160                     ;number of tracks (160 b
 mis_text                DB      "MISSING SECTOR!!"
 
 ;//////////////////////////// Windows
-wc_win_warning          //WC_WINDOW_1
+wc_win_wait_creating    //WC_WINDOW_1
 /*type*/                DB      #81+3
 /*cur_col_mask*/        DB      0
-/*xy_pos*/              DB      24,11
+/*xy_pos*/              DB      (SCREEN_W - 32)>>1,11
 /*xy_size*/             DB      32,5
 /*attr*/                DB      (COL_WHITE << 4) | COL_BRIGHT_WHITE
 /*res0*/                DB      0
@@ -199,10 +287,24 @@ wc_win_warning          //WC_WINDOW_1
 /*ftr_txt*/             DW      0
 /*wnd_txt*/             DW      txt_wait_while_file_creating
 
+wc_win_wait_reading     //WC_WINDOW_1
+/*type*/                DB      #81+3
+/*cur_col_mask*/        DB      0
+/*xy_pos*/              DB      (SCREEN_W - 32)>>1,11
+/*xy_size*/             DB      32,5
+/*attr*/                DB      (COL_WHITE << 4) | COL_BRIGHT_WHITE
+/*res0*/                DB      0
+/*restore_addr*/        DW      0
+/*div0*/                DB      0
+/*div1*/                DB      0
+/*hdr_txt*/             DW      0
+/*ftr_txt*/             DW      0
+/*wnd_txt*/             DW      txt_wait_while_file_reading
+
 wc_win_error            //WC_WINDOW_1
 /*type*/                DB      #81+3
 /*cur_col_mask*/        DB      0
-/*xy_pos*/              DB      24,11
+/*xy_pos*/              DB      (SCREEN_W - 32)>>1,11
 /*xy_size*/             DB      32,5
 /*attr*/                DB      (COL_RED << 4) | COL_BRIGHT_WHITE
 /*res0*/                DB      0
@@ -221,11 +323,14 @@ txt_break               DB      #0D, #0E, "Break", 0
 txt_wait_while_file_creating
                         DB      #0D, #0E, "Please wait", #0D
                         DB      #0E, "while file creating...",0
+txt_wait_while_file_reading
+                        DB      #0D, #0E, "Please wait", #0D
+                        DB      #0E, "while file reaiding...",0
 
 wc_win_error_file_exist //WC_WINDOW_1
 /*type*/                DB      #81+3
 /*cur_col_mask*/        DB      0
-/*xy_pos*/              DB      24,11
+/*xy_pos*/              DB      (SCREEN_W - 32)>>1,11
 /*xy_size*/             DB      32,6
 /*attr*/                DB      (COL_RED << 4) | COL_BRIGHT_WHITE
 /*res0*/                DB      0
@@ -244,7 +349,7 @@ HOTKEY_COLOR    EQU     COL_YELLOW
 wc_win_error_rai        //WC_WINDOW_1
 /*type*/                DB      #81+3
 /*cur_col_mask*/        DB      0
-/*xy_pos*/              DB      20,10
+/*xy_pos*/              DB      (SCREEN_W - 40)>>1,10
 /*xy_size*/             DB      40,7
 /*attr*/                DB      (COL_RED << 4) | COL_BRIGHT_WHITE
 /*res0*/                DB      0
@@ -262,11 +367,10 @@ txt_wnd_rai             DB      #0D, #0D, #0D, #0D
                         DB      "i[", HOTKEY_COLOR, HOTKEY_COLOR, "G", COL_WHITE, COL_WHITE, "]nore all", 0
 txt_wnd_rai_add         DB      "Current file:", 0
 
-
 wc_win_select_drive     //WC_WINDOW_2
 /*type*/                DB      #C2+3
 /*cur_col_mask*/        DB      0
-/*xy_pos*/              DB      32,10
+/*xy_pos*/              DB      (SCREEN_W - 15)>>1,10
 /*xy_size*/             DB      15,8
 /*attr*/                DB      (COL_WHITE << 4) | COL_BRIGHT_WHITE
 /*res0*/                DB      0
@@ -290,8 +394,8 @@ txt_wnd_select          DB      #0D
 wc_win_dump             //WC_WINDOW_1
 /*type*/                DB      #81+3
 /*cur_col_mask*/        DB      0
-/*xy_pos*/              DB      22,8
-/*xy_size*/             DB      32+4,11
+/*xy_pos*/              DB      (SCREEN_W - 36)>>1,6
+/*xy_size*/             DB      36,20
 /*attr*/                DB      (COL_GREEN << 4) | COL_BRIGHT_WHITE
 /*res0*/                DB      0
 /*restore_addr*/        DW      0
@@ -302,12 +406,12 @@ wc_win_dump             //WC_WINDOW_1
 /*wnd_txt*/             DW      txt_wnd_dump
 txt_hdr_dump            DB      #0E, 9, " Dumping... ", 0
 txt_hdr_write           DB      #0E, 9, " Writing... ", 0
-txt_wnd_dump            DB      #0C, 8, "Tracks:", #0B, 17, "T/S:", 0
+txt_wnd_dump            DB      #0C, 17, "Tracks:", #0B, 17, "T/S:", 0
 
 wc_win_dump_start       //WC_WINDOW_2
 /*type*/                DB      #C2+3
 /*cur_col_mask*/        DB      0
-/*xy_pos*/              DB      26,8
+/*xy_pos*/              DB      (SCREEN_W - 28)>>1,8
 /*xy_size*/             DB      28,12
 /*attr*/                DB      (COL_WHITE << 4) | COL_BRIGHT_WHITE
 /*res0*/                DB      0
@@ -330,8 +434,8 @@ txt_wnd_dstart          DB      #0D
                         DB      "     Filename:", 8, #FE
                         DW      txt_filename
                         DB      #0D
-                        DB      "       Tracks:", 8, #FE
-                        DW      txt_tracks
+                        DB      "    Cylinders:", 8, #FE
+                        DW      txt_cylinders
                         DB      #0D
                         DB      "      Preview:", 8, #FE
                         DW      txt_preview
@@ -350,7 +454,7 @@ txt_wnd_dstart          DB      #0D
                         DB      0
 txt_filename            DB      "TRDump00", 0
 txt_drive               DB      "A", 0
-txt_tracks              DB      "80", 0
+txt_cylinders           DB      "80", 0
 txt_retry               DB      "10", 0
 txt_seek                DB      "03", 0
 txt_preview             DB      "No ", 0

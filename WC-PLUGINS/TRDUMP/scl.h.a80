@@ -1,0 +1,14 @@
+;///////////////////////////////////////////////////////////////////////////////
+
+        STRUCT SCL_FILE
+name    DS      8
+type    DB      0
+start   DW      0
+length  DW      0
+numsec  DB      0
+        ENDS
+
+        STRUCT SCL_HDR
+sign    DS      8
+numfiles        DB 0
+        ENDS
