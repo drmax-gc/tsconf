@@ -1,4 +1,5 @@
 ;///////////////////////////////////////////////////////////////////////////////
+        MODULE TRDOS
 
 READ_SECTORS:
 .lpt    ld      a,d
@@ -287,6 +288,8 @@ BROWSE_CAT:
         ld      (cat_cursor),a
         call    PRINT_CAT
         jp      CURSOR
+
+        ENDMODULE
 
 ;//////////////////////////// Windows
 wc_win_trdos            //WC_WINDOW_2

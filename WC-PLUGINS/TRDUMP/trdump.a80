@@ -1,11 +1,12 @@
 ;//////////////////////////////////////////////////////////////
-;/////////////////////// TRD Dumper v0.82  ////////////////////
+;/////////////////////// TRD Dumper v0.83  ////////////////////
 ;//////////////////////////////////////////////////////////////
 ;//                  by Doctor Max 13-Dec-2017               //
 ;//                          Jun-2018                        //
 ;//                          Mar-2019                        //
 ;//                          Jul-2019                        //
 ;//                          Feb-2021                        //
+;//                          Yan-2022                        //
 ;//                    https://t.me/drmax_gc                 //
 ;//////////////////////////////////////////////////////////////
 FDDVirt         EQU     #29AF
@@ -255,6 +256,7 @@ cfg_wdata               DB      0
 dump_count              DB      0
 preview                 DB      0
 detect                  DB      0
+fill                    DB      0
 ;////////////////////////////
 tmp_filename            DB      #00
                         DS      16
@@ -269,6 +271,7 @@ filesizes               DD      80*2*16*256
                         DD      85*2*16*256
                         DD      86*2*16*256
                         DD      87*2*16*256
+                        DD      88*2*16*256
 TRDTRACKS               DB      160                     ;number of tracks (160 by default)
 mis_text                DB      "MISSING SECTOR!!"
 
@@ -343,6 +346,7 @@ wc_win_error_file_exist //WC_WINDOW_1
 txt_hdr_error           DB      #0E, 9, " Error ", 0
 txt_file_exist          DB      #0D, #0E, COL_YELLOW, COL_YELLOW, "Dump file exist!"
                         DB      #0D, #0D, #0E, COL_WHITE, COL_WHITE, "Please rename and repeat.", 0
+txt_nospace             DB      #0D, #0E, COL_YELLOW, COL_YELLOW, "Not enough disk space!", 0
 
 HOTKEY_COLOR    EQU     COL_YELLOW
 
@@ -412,7 +416,7 @@ wc_win_dump_start       //WC_WINDOW_2
 /*type*/                DB      #C2+3
 /*cur_col_mask*/        DB      0
 /*xy_pos*/              DB      (SCREEN_W - 28)>>1,8
-/*xy_size*/             DB      28,12
+/*xy_size*/             DB      28,13
 /*attr*/                DB      (COL_WHITE << 4) | COL_BRIGHT_WHITE
 /*res0*/                DB      0
 /*restore_addr*/        DW      0
@@ -449,6 +453,9 @@ txt_wnd_dstart          DB      #0D
                         DB      "   Seek count:", 8, #FE
                         DW      txt_seek
                         DB      #0D
+                        DB      " Fill ignored:", 8, #FE
+                        DW      txt_fill
+                        DB      #0D
                         DB      #0D
                         DB      #0E, "[", COL_YELLOW, COL_YELLOW, " Just DUMP IT ", COL_WHITE, COL_WHITE, "]"
                         DB      0
@@ -459,5 +466,6 @@ txt_retry               DB      "10", 0
 txt_seek                DB      "03", 0
 txt_preview             DB      "No ", 0
 txt_detect              DB      "No ", 0
+txt_fill                DB      "No ", 0
 txt_Y                   DB      "Yes"
 txt_N                   DB      "No "

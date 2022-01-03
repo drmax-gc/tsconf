@@ -1,4 +1,4 @@
-## TRDump v0.72
+## TRDump v0.83
 
 #### Wild Commander plugin
 
@@ -10,5 +10,5 @@
   + autoincrement filename
   + catalogue preview
   + display current filename
-  + detect extra tracks
-  + mark ignored sectors as missed
+  + detect extra tracks (optional)
+  + mark ignored sectors as missed (optional)

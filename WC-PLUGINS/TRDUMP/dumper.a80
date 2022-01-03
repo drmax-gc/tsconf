@@ -30,7 +30,7 @@ DUMPER_LOOP:
         ld      bc,2 : call TURBOPL
 
         IF EMUL == 0
-        call    READ_CAT
+        call    TRDOS.READ_CAT
         or      a
         jp      nz,.no_dump
 
@@ -38,7 +38,7 @@ DUMPER_LOOP:
         or      a
         jr      z,.no_preview
 
-        call    BROWSE_CAT
+        call    TRDOS.BROWSE_CAT
         jp      nz,.no_dump
         ENDIF
 
@@ -46,9 +46,9 @@ DUMPER_LOOP:
         ld      bc,1 : call TURBOPL
 
         xor     a
-        ld      (last_file_num),a
+        ld      (TRDOS.last_file_num),a
         ld      hl,CATALOGUE
-        ld      (last_file_ptr),hl
+        ld      (TRDOS.last_file_ptr),hl
 
         ld      a,(detect)
         or      a
@@ -64,7 +64,10 @@ DUMPER_LOOP:
 
         ld      a,(TRDTRACKS)
         sub     160
-        add     a,a
+        bit     0,a
+        jr      z,1F
+        inc     a
+1       add     a,a
         ld      l,a
         ld      h,0
         ld      de,filesizes
@@ -264,10 +267,14 @@ DUMPER_LOOP:
         ld      a,(COL_GREEN << 4) | COL_BRIGHT_RED : ld (HDCOL),a
         ld      a,SYM_BROKEN : ld (RDSYM),a
 
+        ld      a,(fill)
+        or      a
+        jr      z,.nofill
 ;fill ignored sector with text
         pop hl
         push hl
         call Filler
+.nofill
 
 ;TODO: put ignored sector to table
 
@@ -302,7 +309,15 @@ DUMPER_LOOP:
         jp      .no_dump
 
 .err_file
-        ld      ix,wc_win_error_file_exist : call PRWOW
+        ld      hl,txt_nospace
+        sub     #10
+        jr      z,.err_nospace
+        ld      hl,txt_file_exist
+.err_nospace
+        ld      ix,wc_win_error_file_exist
+        ld      (ix + WC_WINDOW_2.wnd_txt),l
+        ld      (ix + WC_WINDOW_2.wnd_txt + 1),h
+        call    PRWOW
         call    WAIT_ESC_KEY
         ld      ix,wc_win_error_file_exist : call RRESB
         ld      ix,wc_win_dump_start
@@ -371,13 +386,13 @@ Filler: ld      d,h
 
 ;///////////////////////////////////
 detectExtraTracks:
-        call    findLastFile
+        call    TRDOS.findLastFile
         dec     a
-        call    getAddrFile
+        call    TRDOS.getAddrFile
         ld      h,(ix + TRD_FILE.track)
         ld      l,(ix + TRD_FILE.sector)
         ld      b,(ix + TRD_FILE.num_sectors)
-        call    addNumsec
+        call    TRDOS.addNumsec
         ld      a,h
         ret
 ;///////////////////////////////////
@@ -558,7 +573,7 @@ PRINT_TRACK:
 
 PRINT_WHAT_FILE:
         push    bc,de,hl
-        call    whereHead
+        call    TRDOS.whereHead
         push    ix
         pop     hl
         ld      de,curr_filename_buff
@@ -620,7 +635,9 @@ SELECT_DUMPER:
         jp      z,.selretry
         cp      8
         jp      z,.selsector
-        cp      10
+        cp      9
+        jp      z,.selfill
+        cp      11
         jr      nz,.lp
 
         call    RRESB
@@ -669,6 +686,19 @@ SELECT_DUMPER:
         jr      nz,$+2+3
         ld      hl,txt_N
         ld      de,txt_detect
+        ld      bc,3
+        ldir
+        ld      hl,(ix + WC_WINDOW_2.wnd_txt) : ld de,#0101 : call TXTPR
+        jp      .lp1
+
+.selfill
+        ld      a,(fill)
+        xor     1
+        ld      (fill),a
+        ld      hl,txt_Y
+        jr      nz,$+2+3
+        ld      hl,txt_N
+        ld      de,txt_fill
         ld      bc,3
         ldir
         ld      hl,(ix + WC_WINDOW_2.wnd_txt) : ld de,#0101 : call TXTPR

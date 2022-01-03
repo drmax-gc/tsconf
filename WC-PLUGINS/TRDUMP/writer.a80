@@ -1,6 +1,6 @@
 ;///////////////////////////////////////////////////////////////////////////////
 WRITER:
-        di:halt
+;        di:halt
 
         ld      bc,FDDVirt
         ld      a,#80
@@ -396,7 +396,7 @@ cur_up: ld      a,(ix + WC_WINDOW_2.cur_pos)
         call    CURSER
         ld      a,(ix + WC_WINDOW_2.cur_pos)
         dec     a
-        cp      9
+        cp      10
         jr      nz,.f
         sub     1
 .f      ld      (ix + WC_WINDOW_2.cur_pos),a
@@ -410,9 +410,9 @@ cur_dn: ld      a,(ix + WC_WINDOW_2.cur_pos)
 
         ld      a,(ix + WC_WINDOW_2.cur_pos)
         inc     a
-        cp      9
+        cp      10
         jp      nz,.f
-        ld      a,10
+        ld      a,11
 .f      ld      (ix + WC_WINDOW_2.cur_pos),a
         ld      hl,(ix + WC_WINDOW_2.wnd_txt) : ld de,#0101 : call TXTPR
         jp      CURSOR
